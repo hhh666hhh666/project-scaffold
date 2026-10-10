@@ -1,0 +1,206 @@
+name: Release
+
+# 推 v* tag 即发布：版本门禁 → 迁移验证 → 构建推镜像仓库 → SSH 部署。
+# 这是本项目唯一会改动运行中服务的流水线。
+# 与 ci.yml 的分工：ci.yml 管「提交能不能过」，本文件管「tag 能不能上线」。
+#
+# ⚠️ 下面的 env 段里全是**占位符**：ACR_REGISTRY / DEPLOY_HOST / DEPLOY_USER 换成你自己的值。
+# ⚠️ secrets 不能出现在 if: 里（GitHub 会报 Unrecognized named-value 并让整个 workflow 作废，
+#    故障表现是「run 失败但 jobs 数为 0」，极容易误判）——需要判「有没有」时先在 job 级 env
+#    折算成普通布尔，step 再判 env。密钥值本身不进 env，只传「有没有」。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# 同一个 tag 的发布串行，避免两次部署交叉；不取消已开始的（部署做一半被中断更糟）。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # ⚠️ 换成你自己的镜像仓库地址与命名空间（整段从云厂商控制台「访问凭证」抄）
+  ACR_REGISTRY: <你的镜像仓库地址>
+  ACR_NAMESPACE: ${PROJECT_NAME}
+  DEPLOY_HOST: <你的服务器 IP>
+  DEPLOY_USER: <部署用户名>
+
+jobs:
+  # 1. 版本门禁：tag 与 frontend/package.json / backend/pom.xml / CHANGELOG 对齐，
+  #    且 compose 用的是 ${APP_VERSION}。
+  version:
+    name: 版本 · tag 与两处对齐
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # 默认是 fetch-depth: 1 的浅克隆，拿不到 tag；而这个 job 的前提就是 tag
+          fetch-depth: 0
+
+      - name: 跑 scripts/${VERSION_SCRIPT}
+        run: bash scripts/${VERSION_SCRIPT} "$GITHUB_REF_NAME"
+
+      # 镜像 tag 不带 v（git tag 带）。compose 不支持 ${VAR#v} 截断，剥前缀只能发生在传参之前。
+      - id: meta
+        name: 算出镜像 tag（去掉 v 前缀）
+        run: echo "image_tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  # 2. 在一次性 mysql:8 上把 db/migration 完整跑一遍。
+  #    `mvn test` 完全不碰数据库，迁移若不单独验就从未被任何流程验证过。
+  #    ⚠️ 它只证明「语法能跑」，不证明「数据安全」——破坏性迁移仍靠人守。
+  flyway-verify:
+    name: 迁移 · 临时库重放
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: version
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${DB_NAME}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 按顺序重放迁移脚本
+        run: |
+          set -euo pipefail
+          prev=0
+          for f in backend/src/main/resources/db/migration/V*.sql; do
+            base="$(basename "$f")"
+            # 文件名要合 Flyway 约定，否则应用启动时会静默忽略它
+            if ! printf '%s' "$base" | grep -qE '^V[0-9]+__[^/]+\.sql$'; then
+              echo "::error::迁移文件名不合 Flyway 约定：$base"; exit 1
+            fi
+            n="$(printf '%s' "$base" | sed -E 's/^V([0-9]+)__.*/\1/')"
+            if [ "$n" -le "$prev" ]; then
+              echo "::error::迁移版本号不是严格递增：$base（上一个 $prev）"; exit 1
+            fi
+            prev="$n"
+            echo "==> 应用 $base"
+            docker run --rm --network host -i mysql:8 \
+              mysql -h127.0.0.1 -uroot -proot ${DB_NAME} < "$f"
+          done
+          echo "==> 全部迁移在 MySQL 8 上重放成功"
+
+  # 3. 构建两个镜像推仓库。tag = 去 v 的版本号；**不推 latest**——浮动 tag 会让
+  #    「线上跑的是哪个版本」说不清，回滚落点就是版本 tag。
+  build-push:
+    name: 镜像 · 构建并推送
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [version, flyway-verify]
+    env:
+      HAS_DOCKERHUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # 基础镜像走 Docker Hub：匿名额度按共享出口 IP 计、很容易撞顶；配了账号则按账号计。
+      - name: 登录 Docker Hub（未配 secrets 时跳过）
+        if: env.HAS_DOCKERHUB == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # ⚠️ 阿里云 ACR **个人版不支持 AccessKey 推送**：用户名是「阿里云账号全名」，
+      #    密码是控制台「访问凭证」里单独设的**固定密码**。用 AccessKey 会稳定 401。
+      #    换成别的镜像仓库时，凭据方式按那家的文档来。
+      - name: 登录镜像仓库
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - id: meta
+        name: 构建信息
+        run: |
+          echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date '+%Y-%m-%d %H:%M')" >> "$GITHUB_OUTPUT"
+
+      # CI 在境外 runner 上：Maven 与 npm 都切回官方源，比走国内镜像更快也更稳。
+      - name: 构建并推后端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          # ⚠️ 关掉 buildx 默认附带的 attestation：产物会变成 manifest list，
+          #    部分个人版镜像仓库对它的兼容性没有验证过，别赌这个。
+          provenance: false
+          sbom: false
+          build-args: |
+            MAVEN_MIRROR=central
+            APP_VERSION=${{ needs.version.outputs.image_tag }}
+          tags: ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${PROJECT_NAME}-server:${{ needs.version.outputs.image_tag }}
+
+      - name: 构建并推前端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            NPM_REGISTRY=https://registry.npmjs.org
+            APP_VERSION=${{ needs.version.outputs.image_tag }}
+            APP_COMMIT=${{ steps.meta.outputs.commit }}
+          tags: ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${PROJECT_NAME}-web:${{ needs.version.outputs.image_tag }}
+
+  # 4. 把 compose 与脚本送上去，再执行部署脚本（拉取 → 重启 → 等健康）。
+  #    服务器上**不 clone 仓库**：每次送过去，保证「服务器上的编排 = 这个 tag 的编排」。
+  deploy:
+    name: 部署 · SSH 到服务器
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [version, build-push]
+    env:
+      HAS_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 准备 SSH 凭据
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ "${{ env.HAS_KNOWN_HOSTS }}" = "true" ]; then
+            printf '%s\n' "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            echo "⚠️ 未配 DEPLOY_SSH_KNOWN_HOSTS，改用 ssh-keyscan 现场采集" >&2
+            ssh-keyscan -H "${{ env.DEPLOY_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: 送 compose 与脚本
+        run: |
+          set -euo pipefail
+          ssh "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}" 'mkdir -p /srv/${PROJECT_NAME}/compose/scripts'
+          scp docker-compose.prod.yml \
+            "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/srv/${PROJECT_NAME}/compose/docker-compose.prod.yml"
+          scp scripts/server-deploy.sh scripts/server-rollback.sh scripts/server-compose.sh \
+            "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/srv/${PROJECT_NAME}/compose/scripts/"
+
+      - name: 执行部署
+        run: |
+          ssh "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}" \
+            "bash /srv/${PROJECT_NAME}/compose/scripts/server-deploy.sh '${{ needs.version.outputs.image_tag }}'"
+
+      - name: 清理私钥
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

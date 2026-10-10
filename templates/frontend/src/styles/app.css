@@ -1,0 +1,32 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   样式入口：完整引入 Tailwind 四层（theme / preflight / utilities / base）+ token。
+   顺序**不能改**：`@import "tailwindcss"` 必须最先，token 要在 utilities 之前被解析到。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./tokens.css";
+
+/* shadcn 的基础层：`*` 的默认边框色 + `body` 跟随主题变量。 */
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+/* 行内文字按钮统一件：hover 下划线各自保留（颜色语义不同），
+   **键盘焦点环统一到这里**——别让 Tab 过去没有可见指示。 */
+@layer components {
+  .link-button {
+    border-radius: 4px;
+    outline: none;
+  }
+  .link-button:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-focus);
+  }
+}

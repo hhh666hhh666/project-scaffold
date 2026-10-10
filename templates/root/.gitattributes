@@ -1,0 +1,5 @@
+# Windows 上 core.autocrlf=true 会把 .sh 落成 CRLF，而 bash 读到 "#!/usr/bin/env bash\r"
+# 会报 bad interpreter。这里强制所有 shell 脚本以 LF 入库。
+*.sh text eol=lf
+# 同一类问题：nginx / 各种 conf 里有 CR 会导致配置解析异常
+*.conf text eol=lf

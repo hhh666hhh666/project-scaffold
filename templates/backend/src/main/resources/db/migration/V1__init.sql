@@ -1,0 +1,18 @@
+-- 第一份迁移脚本。脚手架刻意**不预置任何业务表**——表结构是你的设计决定的。
+--
+-- 加脚本的规矩：
+--   1. 文件名 V<N>__<snake_case>.sql，N **严格递增**；已上线的脚本永不修改（要改就加一条新的）。
+--   2. 加 V5 及以上编号的脚本后**必须重启后端**才能生效（迁移在启动时跑）。
+--   3. 破坏性操作没有任何自动保险，靠人守。
+--   4. 建表一律 utf8mb4 + InnoDB；主键 BIGINT AUTO_INCREMENT；时间字段 DATETIME。
+--
+-- 示例（真正建表时照这个形状写）：
+--
+-- SET NAMES utf8mb4;
+--
+-- CREATE TABLE IF NOT EXISTS `example_item` (
+--     `id`         BIGINT      NOT NULL AUTO_INCREMENT,
+--     `name`       VARCHAR(64) NOT NULL,
+--     `create_time` DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     PRIMARY KEY (`id`)
+-- ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '示例';

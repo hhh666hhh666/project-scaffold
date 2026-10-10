@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   设计 token（**唯一真相源**）
+
+   本文件分**两节**，读的时候别混：
+
+     第一节 `@theme static { … }`  —— **我们的 token**。颜色 / 形状 / 字体 / 字阶 /
+                                     阴影 / 动效的真实值都在这。
+     第二节 `:root { … }` + `@theme inline`  —— **翻译给 shadcn-vue 的组件用**，
+                                     只做映射、不写颜色值。
+
+   ⚠️ **改颜色、改圆角、改字体 → 只改第一节。** 在第二节写死颜色 = 又造一份真相。
+   ⚠️ 视觉系统的人类可读快照是仓根 `DESIGN.md`，**它从本文件派生**（由 impeccable 生成），不手写。
+
+   ── 口味规格（下面的默认值只是「能跑的灰阶」，**照这段规格换成你自己的色**）──────
+     ① **冷中性底色**：面（页面底 / 卡片 / 区块）走**冷调**（色相约 250–265），不要暖灰。
+     ② **宽松**：字阶**配行高**（中文正文建议 1.75），圆角整体偏大一档。
+     ③ **L3 大面积彩色面**：页面底、区块、卡片**都带一点颜色**（`--color-tint-*`），
+        但保持**高亮度、低彩度**——有颜色而不打架。
+        ⚠️ 同时**必须留一处近白**：`--color-reader`，专门给「读长文字的那块」。
+        它是有意命名的：**以后谁也别把那一层上色**。
+     ④ **柔和阴影**：不透明度提高、扩散加大，且**用冷调色相**（不是纯黑）。
+     ⑤ **浮层用玻璃拟态**：弹窗 / 下拉走 `.glass`（半透明 + 模糊 + 1px 描边 + 大圆角），
+        铺底（页面 / 卡片 / 表格 / 表单）一律**实底面**。⚠️ **玻璃上不许放长正文**。
+
+   ── 默认值说明 ──────────────────────────────────────────────────────────
+     下面所有色值都是**中性灰阶占位**，主色 `--color-brand` 标了 TODO。
+     **`--color-brand` 与它的 soft / ink 三枚必须由本项目自己定**（那是产品身份，
+     脚手架不该替你选）。换的时候连 `--color-ok` / `--color-warn` / `--color-danger` 一起看，
+     保证语义色之间不打架。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* shadcn 的 `dark:` 变体约定：认 `<html class="dark">` 之下的元素 */
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════ 第一节 · 我们的 token（唯一真相源）═══════════════════ */
+@theme static {
+  /* ── 面（L3：这些层都带颜色；默认值是中性灰阶，照上面「口味规格」上冷调）── */
+  --color-canvas:    oklch(96.5% 0.003 250); /* 页面底 */
+  --color-surface:   oklch(99% 0.002 250);   /* 卡片 / 内容面 */
+  --color-surface-2: oklch(94% 0.004 250);   /* 次级面：悬停 / 交替带 */
+
+  /* **有色区块面**：给不同区块上色（分区 / 强调块）。这是「受控色板」——
+     5 个固定色，不许随手再加第 6 个。默认值同样是灰阶，等主色定了再上色。 */
+  --color-tint-blue:   oklch(95% 0.008 250);
+  --color-tint-cyan:   oklch(95% 0.008 205);
+  --color-tint-violet: oklch(95% 0.008 300);
+  --color-tint-green:  oklch(95% 0.008 155);
+  --color-tint-amber:  oklch(96% 0.010 85);
+
+  /* ⚠️ **阅读面**：读长文字的那一层（正文 / 详情）。**有意留近白、不许上色**。 */
+  --color-reader: oklch(100% 0 0);
+
+  /* ── 线 ── */
+  --color-line:      oklch(89% 0.004 250); /* 结构边框 / 分隔线 */
+  --color-line-soft: oklch(93% 0.003 250); /* 更弱的分隔 */
+
+  /* ── 字 ── */
+  --color-ink-strong: oklch(16% 0.006 265); /* 最重的字：要有「纯黑感」的强调 */
+  --color-ink:        oklch(23% 0.008 265); /* 正文 / 标题 */
+  --color-ink-muted:  oklch(48% 0.008 265); /* 次要文字（全浅面达小字 AA 的下限档） */
+  --color-ink-subtle: oklch(62% 0.006 265); /* 占位符 / 辅助说明。
+     ⚠️ 用法口径：本档在浅面上只有 3.0–3.6:1，**只用于大字（≥19px 粗体）/ 装饰**；
+        有信息量的小字一律用 --color-ink-muted。 */
+
+  /* ── 主色与语义色 ─────────────────────────────────────────────────────
+     ⚠️ **TODO：把下面三枚主色换成你自己的色**（默认值是中性灰，只是「能跑」）。
+     ⚠️ **对 / 错不许只靠颜色**表达：必须同时给文字或图标（对勾 / 叉），
+        色盲与高对比模式下才读得出来。
+     ok / warn / danger 各配一枚 **soft 浅底**（状态色的「容器面」）：
+        **浅底上的小字用 ink**（状态色本体达不到小字 AA），别写 `bg-ok/12` 这类临时透明度。 */
+  --color-brand:       oklch(50% 0.020 250); /* ← TODO：换成你的主色 */
+  --color-brand-soft:  oklch(94% 0.010 250); /* 主色的浅底 */
+  --color-brand-ink:   oklch(100% 0 0);      /* 主色之上的文字 */
+
+  --color-ok:          oklch(55% 0.010 155);
+  --color-ok-soft:     oklch(95% 0.012 155);
+  --color-warn:        oklch(66% 0.012 75);
+  --color-warn-soft:   oklch(95% 0.012 75);
+  --color-danger:      oklch(56% 0.015 25);
+  --color-danger-soft: oklch(95% 0.012 25);
+  --color-danger-ink:  oklch(100% 0 0);
+  --color-focus:       oklch(50% 0.020 250);
+
+  /* ── 深字色：tint 底上的「彩色文字 / 图标」用 ────────────────────────────
+     「浅底 + 彩字」的组合，语义色本体达不到小字 AA（见 ink-subtle 的口径），
+     所以每个色相配一枚**加深档**。加第 6 个 tint 时要照此补一枚。 */
+  --color-ink-blue:    oklch(46% 0.020 250);
+  --color-ink-green:   oklch(46% 0.018 155);
+  --color-ink-violet:  oklch(46% 0.018 300);
+  --color-ink-amber:   oklch(46% 0.018 75);
+  --color-ink-red:     oklch(46% 0.020 25);
+
+  /* ── 形状：宽松感的一部分——圆角整体偏大一档 ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px; /* 浮层（玻璃）用 */
+
+  /* ── 字体：先用系统栈 ──
+     ⚠️ 不要在 token 里引入 Web 字体（加载失败会拖慢首屏、中文还会闪字体）。
+        要自托管中文子集是后续增强，别在建骨架时做。 */
+  --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Consolas, monospace;
+
+  /* ── 字阶 + 行高：**行高是「宽松」的主要杠杆**（中文尤其需要）── */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.45;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.6;
+  --text-base: 1rem;
+  --text-base--line-height: 1.75;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.7;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.5;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 1.4;
+
+  /* ── 阴影：柔和 —— 不透明度高、扩散大，且**用冷调色相**而不是纯黑 ── */
+  --shadow-1: 0 1px 2px oklch(30% 0.02 250 / 0.06), 0 1px 3px oklch(30% 0.02 250 / 0.05);
+  --shadow-2: 0 2px 4px oklch(30% 0.02 250 / 0.06), 0 4px 12px oklch(30% 0.02 250 / 0.07);
+  --shadow-3: 0 4px 8px oklch(30% 0.02 250 / 0.07), 0 12px 32px oklch(30% 0.02 250 / 0.10);
+}
+
+/* ═══════════════════ 第二节 · 翻译给 shadcn-vue（只做映射）═══════════════════ */
+:root {
+  --background: var(--color-canvas);
+  --foreground: var(--color-ink);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-brand-ink);
+  --secondary: var(--color-surface-2);
+  --secondary-foreground: var(--color-ink);
+  --muted: var(--color-surface-2);
+  --muted-foreground: var(--color-ink-muted);
+  --accent: var(--color-brand-soft);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-danger-ink);
+  --border: var(--color-line);
+  --input: var(--color-line);
+  --ring: var(--color-focus);
+  --radius: var(--radius-md);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: calc(var(--radius));
+}
+
+/* ── 浮层材质：玻璃（铺底一律不用，见文件头的口味规格）─────────────────────
+   ⚠️ 三条硬规矩：① **玻璃背后必须有内容可透**，浮在纯白上等于白付性能；
+      ② **玻璃上不许放长正文**——正文永远在 `--color-reader`（近白）上；
+      ③ 系统开「减少透明度」（prefers-reduced-transparency）时退化成实底。 */
+@layer components {
+  .glass {
+    background: oklch(100% 0 0 / 0.68);
+    backdrop-filter: blur(18px);
+    border: 1px solid oklch(100% 0 0 / 0.6);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-3);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: var(--color-surface);
+    backdrop-filter: none;
+  }
+}
+
+/* ── 全局滚动条颜色 ──────────────────────────────────────────────────────
+   ⚠️ 只用**标准属性** `scrollbar-color` / `scrollbar-width`。
+   Windows 11 的 Chrome 默认启用 Fluent overlay 滚动条，此模式下 Chrome
+   **直接忽略所有 ::-webkit-scrollbar-* 自定义**——伪元素写了等于没写。
+   标准属性可被继承：子元素要自己的滚动条外观必须显式声明。 */
+html {
+  scrollbar-color: oklch(91% 0.003 250) transparent;
+}

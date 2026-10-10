@@ -1,0 +1,112 @@
+# 云上 prod 编排
+#
+# 形态：镜像来自镜像仓库（CI 构建推送，服务器只拉取、不构建、不 clone 仓库）；
+#       对外入口是宿主反代，web 容器只绑 127.0.0.1。
+#
+# ⚠️ 本文件里**没有 build:**——小机器上跑 Maven 必 OOM，构建一律在 CI 上做。
+# ⚠️ 变量来自服务器上的 $SERVER_ROOT/.env，而 compose 默认只找**自己所在目录**的 .env；
+#    所以调用方（scripts/server-deploy.sh）一律显式 `--env-file`。
+# ⚠️ 内存参数（mem_limit / JAVA_TOOL_OPTIONS / MySQL 的 command 段）的算法见
+#    `docs/operations/内存策略.md`（可选章节）；**数值以本文件为准**。
+
+name: ${PROJECT_NAME}   # 固定项目名，免得容器/网络名随 compose 目录名变化而漂移
+
+# 统一的日志上限：Docker 默认的 json-file 不限制大小，系统盘迟早被日志吃掉。
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: ${PROJECT_NAME}-mysql
+    restart: unless-stopped
+    # 内核级内存硬顶（保险，不是配额）：取值 = 实测占用（约 161MB）的约 2.4 倍。
+    # ⚠️ 上线前按你自己的实测重算，别照抄。
+    mem_limit: 384m
+    # ⚠️ 只绑**宿主回环**，不是 0.0.0.0。
+    #    用途：让本机能经 SSH 隧道直连（数据库工具、临时排障都靠它），
+    #    同时数据库仍不对公网开口。
+    #    ⚠️ 必须写成 `127.0.0.1:3306:3306`。写成 `3306:3306` 等于绑 0.0.0.0，那是真正的红线。
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 里设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      # 小机器：显式钉死缓冲池与连接数，不让默认值往上飘。
+      - --innodb-buffer-pool-size=128M
+      - --max-connections=50
+      # ---- 省内存三刀（算法与实测方法见 docs/operations/内存策略.md）----
+      # 1) 关 performance_schema：不影响任何业务功能，却是单项最大的一笔可回收内存；
+      #    代价是失去它的性能诊断视图。
+      - --performance-schema=OFF
+      # 2) redo log buffer 64M → 16M：写入量小的应用足够。
+      - --innodb-log-buffer-size=16M
+      # 3) 表缓存 4000 → 400：小库同时打开的表远不到 400 张。
+      - --table-open-cache=400
+    volumes:
+      - type: bind
+        source: ${MYSQL_DATA_DIR:?请在 .env 里设置 MYSQL_DATA_DIR（Linux 绝对路径）}
+        target: /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+
+  server:
+    # 镜像 tag 跟随版本号，但由部署时传入（这里永远是变量，不写死）。
+    image: ${ACR_REGISTRY:?未设置 ACR_REGISTRY}/${ACR_NAMESPACE:?未设置 ACR_NAMESPACE}/${PROJECT_NAME}-server:${APP_VERSION:?未设置 APP_VERSION}
+    container_name: ${PROJECT_NAME}-server
+    restart: unless-stopped
+    # 内核级内存硬顶：JVM 的**理论上限 ≈ -Xmx + 242MB**，这里留约 1.3 倍余量。
+    mem_limit: 640m
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${DB_NAME}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # 必填：默认值已随仓库公开，缺失时 compose 在读配置阶段就退出。
+      ${APP_ENV_PREFIX}_JWT_SECRET: ${JWT_SECRET_ASSERT}
+      ${APP_ENV_PREFIX}_JWT_EXPIRE_DAYS: ${JWT_EXPIRE_COMPOSE}
+      ${APP_ENV_PREFIX}_CORS_ALLOWED_ORIGINS: ${CORS_COMPOSE}
+      TZ: ${TZ:-Asia/Shanghai}
+      SERVER_PORT: 8080
+      # 小机器硬约束：钉死堆与元空间，避免 JVM 按宿主机内存自动放大。
+      # 用 JAVA_TOOL_OPTIONS 而不是覆盖 entrypoint：① 不动镜像；② 不会把
+      # `java -jar /app/app.jar` 抄进 compose 变成第二份会漂的真相源。
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxMetaspaceSize=112m -XX:MaxDirectMemorySize=32m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:TieredStopAtLevel=1 -XX:+UseSerialGC"
+      SERVER_TOMCAT_THREADS_MAX: 32
+    # 不发布端口：只经 web 容器的反代暴露 /api/，接口文档因此也不对外。
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:8080/v3/api-docs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    logging: *default-logging
+
+  web:
+    image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/${PROJECT_NAME}-web:${APP_VERSION}
+    container_name: ${PROJECT_NAME}-web
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      server:
+        condition: service_healthy
+    # 只绑回环：对外入口交给宿主反代，由它反代到 127.0.0.1:${WEB_PORT}。
+    # 绑回环而不是 0.0.0.0，是为了①不与宿主上已有的服务抢 80/443、②不直接对公网可达。
+    ports:
+      - "127.0.0.1:${WEB_PORT}:80"
+    logging: *default-logging

@@ -1,0 +1,82 @@
+name: CI
+
+# 触发：主干 push + 指向主干的 PR。**不管 tag**——tag 的处置权统一收到 release.yml。
+# 用 GitHub 托管 runner：public 仓库装 self-hosted runner 等于让任何能开 PR 的人在那台机器上执行代码。
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# 最小权限：只读代码。
+permissions:
+  contents: read
+
+# 同一分支上连续 push 时只保留最新一次运行。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # 放最前面：只靠 runner 自带的 bash + git + grep + find，不需要任何 toolchain，几秒就跑完；
+  # 而「文档或注释指向了不存在的文件」「新模块忘了配测试」「结案待办忘了归档」
+  # 是最容易混进主干的人为失误，让它们在别的 job 还在装依赖时就先给出信号。
+  docs:
+    name: 文档 · 链接与引用自检
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 链接与路径引用自检
+        run: bash scripts/${LINK_CHECK_SCRIPT}
+
+      - name: 待办归档守卫
+        run: bash scripts/${TODO_ARCHIVE_SCRIPT}
+
+      - name: 模块测试守卫
+        run: bash scripts/${MODULE_TEST_SCRIPT}
+
+  backend:
+    name: 后端 · Maven 单测
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # 与本机同一条命令：只跑纯单元测试（*Test），不需要 Docker。
+      # 接口/集成层（*IT）要起真库，显式跑 `mvn verify`；骨架阶段没有 *IT。
+      - name: 跑单元测试
+        working-directory: backend
+        run: mvn -B -ntp test
+
+  frontend:
+    name: 前端 · 类型检查与构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      # cache-dependency-path 是相对仓库根解析的，而 lockfile 在子目录里；
+      # 不显式写的话 setup-node 会去根目录找，找不到就静默跳过缓存。
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci 而不是 npm install：严格按 lockfile 装，顺便把「锁文件过期」也变成门禁项。
+      - run: npm ci
+      # ⚠️ vite build 走 esbuild 只剥离类型、不做检查，
+      #    所以**类型错误只会被 typecheck 这一步挡住，构建永远是绿的**。
+      - run: npm run typecheck
+      - run: npm run build

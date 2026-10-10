@@ -1,0 +1,24 @@
+# 构建产物与依赖
+target/
+node_modules/
+dist/
+dist-ssr/
+*.log
+
+# 本机运行配置（含密码与 JWT 密钥），绝不入库
+.env
+.env.local
+.env.*.local
+
+# 编辑器与系统
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# AI 工具的本地状态与本机设置（不入库）
+.workbuddy/
+
+# ui-ux-pro-max 的 --persist 会往仓库根写这个目录（本项目禁用该行为，此处兜底防手滑）
+design-system/

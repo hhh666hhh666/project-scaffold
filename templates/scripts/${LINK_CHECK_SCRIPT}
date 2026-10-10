@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# 检查「文档指向的东西其实不存在」的两类情况，用作 CI 门禁与本地提交前自检。
+#
+#   bash scripts/${LINK_CHECK_SCRIPT}              # 两类都查（默认）
+#   bash scripts/${LINK_CHECK_SCRIPT} --no-scan-refs   # 只查 Markdown 相对链接
+#
+# ⚠️ 本文件必须是 LF 换行，CRLF 会让 bash 报 bad interpreter（见 .gitattributes）。
+# ⚠️ 只扫**已入库**的文件（git ls-files），本地新建还没 git add 的文件会被跳过。
+# ⚠️ 实现上刻意用「一次性 grep 全量文件 + bash 内建处理」而不是逐文件循环：
+#    在 Windows 的 Git Bash 上每起一个进程要上百毫秒，逐文件跑会慢到几十倍。
+# ⚠️ 第二阶段收紧在「顶层目录白名单 × 扩展名白名单」里：误报会让人养成
+#    「CI 红着也照合」的习惯，那比不检查更糟——宁可漏，不可吵。
+set -euo pipefail
+
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
+
+SCAN_REFS=1
+if [ "${1:-}" = "--no-scan-refs" ]; then SCAN_REFS=0; fi
+
+BROKEN=0
+
+# 取目录：结果写进全局变量 DIR，而不是靠 echo + $(...)。
+# 原因是 $(...) 一定会 fork 子 shell，在 Git Bash 上单次约 0.2 秒，
+# 两百多处引用累计就是近一分钟；用变量返回则零开销。
+DIR='.'
+dir_of() {
+  case "$1" in
+    */*) DIR="${1%/*}" ;;
+    *) DIR='.' ;;
+  esac
+}
+
+# 路径既可能是相对文件本身、也可能是相对仓库根，两边都算命中。
+target_exists() {
+  [ -e "$1/$2" ] && return 0
+  [ -e "$2" ] && return 0
+  return 1
+}
+
+report() {
+  printf 'BROKEN: %s -> %s\n' "$1" "$2" >&2
+  BROKEN=$((BROKEN + 1))
+}
+
+# CI 上 actions/checkout 一定产生 git 仓库；没有 git 时退回 find，别直接罢工。
+list_tracked() {
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files -z -- "$@"
+  else
+    echo "==> 不是 git 仓库，退回 find 扫描" >&2
+    local pat args=()
+    for pat in "$@"; do args+=(-name "$pat" -o); done
+    unset 'args[${#args[@]}-1]'
+    find . \( "${args[@]}" \) \
+      -not -path './.git/*' -not -path '*/node_modules/*' \
+      -not -path './target/*' -not -path '*/dist/*' -print0
+  fi
+}
+
+# ---- 1. Markdown 里的相对链接 ----
+# 用一次 awk 吃下所有文件，再在 bash 里处理，避免逐文件起进程。
+# awk 顺带做两件 grep 做不了的事：
+#   ① 跳过 ``` 代码块（文档里的示例不走文件系统）；
+#   ② 剥掉行内代码 `...`（「虚构路径用行内代码就别当链接」这条约定由这里兑现，
+#      否则规则自己会被自己的检查器抓）。
+# md 可能是 CRLF（.gitattributes 只钉了 *.sh），不去掉 \r 会导致全仓误报。
+mapfile -t MD_HITS < <(
+  list_tracked '*.md' \
+    | xargs -0 -r awk '
+        {
+          line = $0
+          gsub(/`[^`]*`/, "", line)
+          if (line ~ /^[[:space:]]*```/) { inf = !inf; next }
+          if (inf) next
+          s = line
+          while (match(s, /\]\([^)]*\)/)) {
+            print FILENAME ":" substr(s, RSTART, RLENGTH)
+            s = substr(s, RSTART + RLENGTH)
+          }
+        }
+      ' 2>/dev/null \
+    | tr -d '\r' || true
+)
+
+echo "==> 检查 Markdown 相对链接（${#MD_HITS[@]} 处）"
+
+for hit in "${MD_HITS[@]}"; do
+  [ -z "$hit" ] && continue
+  f="${hit%%:*}"
+  link="${hit#*:}"
+
+  link="${link#](}"; link="${link%)}"
+  link="${link#<}"; link="${link%>}"
+  link="${link//%20/ }"
+
+  # 外链、邮件、绝对路径、Windows 盘符、模板变量、纯锚点：都不是文件系统能校验的。
+  case "$link" in
+    http://* | https://* | mailto:* | '#'* | '/*' | '{'* | '' | [A-Za-z]:[\\/]*) continue ;;
+  esac
+
+  # 只校验路径部分：锚点与查询串一律忽略。
+  path="${link%%#*}"
+  path="${path%%\?*}"
+  path="${path%/}"
+  [ -n "$path" ] || continue
+
+  dir_of "$f"
+  target_exists "$DIR" "$path" || report "$f" "$path"
+done
+
+# ---- 2. 脚本 / 配置 / 源码文本里提到的仓库路径 ----
+# 为什么单独一步：md 链接断了对人是可见的，而注释、echo、YAML 里的路径不会报任何错
+# ——移动或删除文件时它是最沉默、最晚被发现的一类失效。
+# 怎么压误报：只认「前面不是路径字符」的 docs/ scripts/ .github/ 开头 token，
+# 自动绕开 /var/lib/...、E:/.../docs/...、https://... 这些；再看扩展名白名单。
+# ⚠️ token 主体用「非空白、非引号括号」而不是「ASCII 字母数字」——中文文件名
+#    恰恰是最需要被盯住的，用 ASCII 白名单会把它们全漏掉。
+REF_PAT='(^|[^A-Za-z0-9_./-])(docs|scripts|\.github)/[^[:space:]"'"'"'`(),;<>]+'
+
+if [ "$SCAN_REFS" = 1 ]; then
+  mapfile -t REF_HITS < <(
+    list_tracked '*.sh' '*.yml' '*.yaml' '*.java' '*.vue' '*.ts' \
+      '*.properties' '*.sql' '*Dockerfile' \
+      | xargs -0 -r grep -HoE "$REF_PAT" 2>/dev/null \
+      | tr -d '\r' || true
+  )
+
+  echo "==> 检查脚本文本里提到的仓库路径（${#REF_HITS[@]} 处）"
+
+  for hit in "${REF_HITS[@]}"; do
+    [ -z "$hit" ] && continue
+    f="${hit%%:*}"
+    ref="${hit#*:}"
+
+    # 去掉 grep 为了边界匹配而多带的那个前导字符。
+    case "$ref" in
+      docs/* | scripts/* | .github/*) ;;
+      *) ref="${ref#?}" ;;
+    esac
+    # 去掉黏在尾巴上的中英文标点（中文句子里最容易带「。」「，」）。
+    # 逐个单列而不是写成 [.,;:] —— 方括号里的 ; 会被 case 当成模式分隔符，报语法错。
+    while [ -n "$ref" ]; do
+      case "${ref: -1}" in
+        '.' | ',' | ';' | ':' | '!' | '?' | '。' | '；' | '：' | '、' | '，' | '（' | '）')
+          ref="${ref%?}" ;;
+        *) break ;;
+      esac
+    done
+    ref="${ref%/}"
+
+    case "$ref" in
+      *.md | *.sh | *.yml | *.yaml) ;;
+      *) continue ;;
+    esac
+
+    dir_of "$f"
+    target_exists "$DIR" "$ref" || report "$f" "$ref"
+  done
+fi
+
+# ---- 3. 结论 ----
+if [ "$BROKEN" -gt 0 ]; then
+  echo "" >&2
+  echo "==> 发现 ${BROKEN} 处断链 / 失效路径，请修掉再提交" >&2
+  exit 1
+fi
+
+echo "==> 通过：没有发现断链"

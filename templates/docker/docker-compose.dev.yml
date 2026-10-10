@@ -1,0 +1,27 @@
+# 本机开发只起数据库；后端与前端在宿主机上直跑（`mvn spring-boot:run` / `npm run dev`）。
+# 理由：改代码不用重建镜像，断点与热更新都还在。
+services:
+  mysql:
+    image: mysql:8
+    container_name: ${PROJECT_NAME}-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me}
+      MYSQL_DATABASE: ${DB_NAME}
+      TZ: Asia/Shanghai
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+08:00
+    volumes:
+      # 长语法写绑定挂载，避免 Windows 盘符（E:）被短语法的冒号切错
+      - type: bind
+        source: ${MYSQL_DATA_DIR:-./.data/mysql}
+        target: /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-change-me}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

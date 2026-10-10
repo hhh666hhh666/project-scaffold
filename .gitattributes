@@ -1,0 +1,2 @@
+# 模板文件一律 LF：.sh 脚本带 CRLF 会在容器里报 bad interpreter
+* text=auto eol=lf

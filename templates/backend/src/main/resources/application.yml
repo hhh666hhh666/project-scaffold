@@ -1,0 +1,74 @@
+server:
+  port: ${BACKEND_PORT}
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: ${PROJECT_NAME}-server
+
+  datasource:
+    # 默认值供本机开发用（mvn spring-boot:run 直连本机 3306）；
+    # 容器里由 compose 注入 SPRING_DATASOURCE_* 覆盖，指向 mysql 服务。
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/${DB_NAME}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:change-me}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    encoding: UTF-8
+
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    # ⚠️ date-format 管不到 LocalDateTime：那种字段前端要自己 `replace('T',' ').slice(0,16)`。
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      # ⚠️ 全局 not_null：`updateById` 会**静默跳过 null 字段**。
+      #    要「把某个字段清空」必须用 LambdaUpdateWrapper 的 set()，别指望传 null。
+      update-strategy: not_null
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+logging:
+  level:
+    ${PACKAGE}: debug
+    org.springframework.web: info
+
+${APP_PREFIX}:
+  version: ${APP_VERSION_YAML}
+  # 同源部署（前端与 /api 同域）不需要 CORS，所以默认留空 = 完全不注册；
+  # 只有出现跨域消费者时才填，逗号分隔。见 WebConfig 的注释。
+  cors:
+    allowed-origins: ${CORS_YAML}
+  jwt:
+    # ⚠️ 下面这串是兜底默认值，已随仓库公开；JwtUtil 检测到它会拒绝使用，
+    #    改为启动时随机生成（重启需重新登录），所以本机裸跑只是不便，不会有安全问题。
+    #    正式环境必须在 .env 里设置 ${APP_ENV_PREFIX}_JWT_SECRET。
+    secret: ${JWT_SECRET_YAML}
+    expire-days: ${JWT_EXPIRE_YAML}

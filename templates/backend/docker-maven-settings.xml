@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 容器内的 Maven 镜像源。国内机器上直连官方中央仓常常很慢或超时，这是**环境约束**不是项目偏好；
+     在境外环境里用 --build-arg MAVEN_MIRROR=central 跳过它。 -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <mirrors>
+    <mirror>
+      <id>aliyun-central</id>
+      <name>aliyun central</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
