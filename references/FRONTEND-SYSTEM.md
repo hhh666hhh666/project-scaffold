@@ -2,7 +2,7 @@
 
 这套体系分三层，**三层一起进模板**，缺一层就会退化成「没有抓手的设计规范」。
 
-## ① 规则层：`.codebuddy/rules/design-tools.md`
+## ① 规则层：`.codebuddy/rules/design-skills.md`
 
 **开工前看的那张表**：什么时候用哪个设计 skill、以及唯一硬禁区。
 

@@ -26,7 +26,7 @@
 | [design/API.md](./design/API.md) | 怎么看真实接口、通用响应与错误约定 | 对接接口或改 Controller 的人 | 接口文档与各 Controller |
 | [design/数据模型.md](./design/数据模型.md) | 实体关系、生命周期、历史一致性 | 改数据结构或写查询的人 | 迁移脚本 |
 | [design/前端.md](./design/前端.md) | 前端页面流、路由、状态与 API 边界 | 改前端的人 | `frontend/src/` |
-| [design/设计skill清单.md](./design/设计skill清单.md) | 外部设计 skill 的角色与禁区（档案；速查见 `.codebuddy/rules/design-tools.md`） | 改前端 UI 的人 / AI | 本文件 |
+| [design/设计skill清单.md](./design/设计skill清单.md) | 外部设计 skill 的角色与禁区（档案；速查见 `.codebuddy/rules/design-skills.md`） | 改前端 UI 的人 / AI | 本文件 |
 | [adr/](./adr/) | **决策结论**卡片（Status / Considered Options / Consequences） | 查「为什么这么定」的人 | ADR 自身 |
 | [development/contributing.md](./development/contributing.md) | 分支 / 提交 / PR 约定与文档纪律 | 要提交代码的人 | `git log` |
 | [todo/](./todo/) | **未决事项唯一入口** | 想知道「还有什么没定」的人 | 各待办文件 |

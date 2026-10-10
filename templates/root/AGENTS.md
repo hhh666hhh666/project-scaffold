@@ -9,7 +9,7 @@ Spring Boot + Vue 的自用项目。领域词看 `CONTEXT.md`，文档总索引�
 - **未决事项必须落盘**：任何没定的事，本次回复结束前必须变成 `docs/todo/` 下的文件 → `.codebuddy/rules/unresolved-items.md`
 - **改代码 = 改文档**：改了行为就顺手改文档；移动 / 删除文件后全仓搜旧名 → `.codebuddy/rules/docs-with-code.md`
 - **会话工作台**：任务要动文件，动手**之前**先建 `docs/worklog/` 工作台 → `.codebuddy/rules/session-log.md`
-- **外部设计 skill**：用哪个、什么禁区（`ui-ux-pro-max` 禁用 `--persist`） → `.codebuddy/rules/design-tools.md`
+- **外部设计 skill**：用哪个、什么禁区（`ui-ux-pro-max` 禁用 `--persist`） → `.codebuddy/rules/design-skills.md`
 
 规则的体积预算：**单条 ≤ 100 行**，常驻规则越少越好。
 
@@ -17,7 +17,7 @@ Spring Boot + Vue 的自用项目。领域词看 `CONTEXT.md`，文档总索引�
 
 ## 改前端 UI 时的入口
 
-该用哪几个设计 skill、禁区与安装口径 → `.codebuddy/rules/design-tools.md`；设计系统的真相源在 `frontend/src/styles/tokens.css`（**改颜色 / 间距 / 圆角只改它**）。
+该用哪几个设计 skill、禁区与安装口径 → `.codebuddy/rules/design-skills.md`；设计系统的真相源在 `frontend/src/styles/tokens.css`（**改颜色 / 间距 / 圆角只改它**）。
 
 ## 收尾（每次对话结束前）
 
