@@ -74,4 +74,7 @@ cd backend && mvn -B -ntp spring-boot:run
 ## CI 与部署
 
 - CI（`.github/workflows/ci.yml`）：类型检查与构建、后端单测、文档守卫；这些基础门禁不要求本机 Docker。
+- 依赖升级（`.github/dependabot.yml`）：每周分别为 Maven（`backend/`）、npm（`frontend/`）与 GitHub Actions
+  提一次升级 PR，只提案、不自动合并、不触发部署。npm 需要先执行一次 `npm install` 并把
+  `package-lock.json` 入库，升级 PR 才有可维护的锁文件；补丁 / 小版本按组件家族分组，大版本单独提。
 - 部署：见 `deploy/README.md`（仅 `--with-deploy` 生成，发布流程仍使用容器）。

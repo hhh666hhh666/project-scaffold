@@ -35,6 +35,21 @@ jobs:
       - name: 跑离线回归测试
         run: python -m unittest discover -s tests -v
 
+  consistency:
+    name: 维护 · 版本表与 skill 清单一致性
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # 只读、离线：比对 TECH-STACK 版本表 / 四张 skill 清单表与模板、拉取脚本。
+      - name: 跑一致性检查
+        run: python scripts/check_consistency.py
+
   smoke:
     name: 生成物 · 四条守卫冒烟
     runs-on: ubuntu-latest

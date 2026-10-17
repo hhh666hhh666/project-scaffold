@@ -10,6 +10,7 @@ alwaysApply: true
 
 ## 什么时候用哪个
 
+<!-- consistency:design-skills:start -->
 | 什么时候 | 用哪个 | 备注 |
 |---|---|---|
 | 定方向 / 整体重设计 / 抽设计系统 | `impeccable` | 引擎首次调用会从远端拉平台二进制 |
@@ -17,6 +18,7 @@ alwaysApply: true
 | 无障碍与规范审查：键盘、对比度、i18n、深色、网址状态 | `web-design-guidelines` | 每次从远端拉最新规则，**需联网** |
 | 查色板 / 字体搭配 / 风格资料 | `ui-ux-pro-max` | 见下方禁区 |
 | 用 shadcn-vue 组件（`add` / `search` / preset） | `shadcn-vue`（官方） | ⚠️ `user-invocable: false`，**只能 AI 自己用，@ 不到** |
+<!-- consistency:design-skills:end -->
 
 **一个都不设 `alwaysApply`**（不常驻注入）；`impeccable` 不装 hooks（探测器只在被主动调用时跑）。
 这些 skill 都**只装 skill 目录、不是上游完全体**（hooks、CLI 安装器、模板不装），差在哪见 `docs/design/设计skill清单.md`；**别用上游的安装器去补齐**。

@@ -221,6 +221,72 @@ class ScaffoldGenerationTest(unittest.TestCase):
             self.assertFalse(out.exists())
 
 
+class DependabotTemplateTest(unittest.TestCase):
+    TEMPLATE = ROOT / "templates" / "root" / ".github" / "dependabot.yml"
+
+    @staticmethod
+    def load(text: str) -> dict:
+        # 文件头是给人看的注释，正文是 JSON 写法（JSON 也是合法 YAML）。
+        body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+        return json.loads(body)
+
+    def test_template_is_parsable_and_covers_expected_ecosystems(self) -> None:
+        text = self.TEMPLATE.read_text(encoding="utf-8")
+        plan = self.load(text)
+
+        self.assertEqual(plan["version"], 2)
+        self.assertEqual(
+            [(u["package-ecosystem"], u["directory"]) for u in plan["updates"]],
+            [("maven", "/backend"), ("npm", "/frontend"), ("github-actions", "/")],
+        )
+        for update in plan["updates"]:
+            self.assertEqual(update["schedule"]["interval"], "weekly")
+            self.assertLessEqual(update["open-pull-requests-limit"], 3)
+            self.assertTrue(update["groups"])
+            for group in update["groups"].values():
+                self.assertNotIn("major", group.get("update-types", []))
+
+    def test_template_has_no_credentials_private_registry_or_auto_merge(self) -> None:
+        text = self.TEMPLATE.read_text(encoding="utf-8")
+        plan = self.load(text)
+
+        def keys(value: object):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    yield key
+                    yield from keys(child)
+            elif isinstance(value, list):
+                for child in value:
+                    yield from keys(child)
+
+        self.assertNotIn("registries", plan)
+        self.assertNotIn("auto-merge", json.dumps(plan))
+        self.assertFalse({"token", "password", "username"} & set(keys(plan)))
+        for marker in ("git@", "http://"):
+            self.assertNotIn(marker, text.lower())
+
+    def test_every_switch_combination_ships_dependabot_outside_workflows(self) -> None:
+        for deploy, ops, testing in itertools.product((False, True), repeat=3):
+            with self.subTest(deploy=deploy, ops=ops, testing=testing):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out = Path(tmp) / "generated"
+                    self.assertEqual(
+                        scaffold.generate(
+                            ScaffoldGenerationTest.args(
+                                out, modules="", with_deploy=deploy,
+                                with_ops=ops, with_testing=testing,
+                            )
+                        ),
+                        0,
+                    )
+                    config = out / ".github" / "dependabot.yml"
+                    self.assertTrue(config.is_file())
+                    self.assertFalse((out / ".github/workflows/dependabot.yml").exists())
+                    rendered = config.read_text(encoding="utf-8")
+                    self.assertEqual(self.load(rendered), self.load(self.TEMPLATE.read_text(encoding="utf-8")))
+                    self.assertNotIn("${", rendered)
+
+
 class ScaffoldJsonTest(unittest.TestCase):
     def run_json(self, out: Path, *extra: str) -> dict:
         argv = [

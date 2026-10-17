@@ -25,11 +25,34 @@
 
 - `update-strategy: not_null` 这条全局配置**保留**了，并在 yml 里写了警告注释——
   它是个「`updateById` 静默跳过 null 字段」的坑，写清楚比删掉有用。
-- 依赖版本**钉住**（Spring Boot 3.5.16 / MyBatis-Plus 3.5.17 / jjwt 0.12.7 / springdoc 2.9.1 …），
-  不写 `<latest>`、也不写范围版本。
+- 后端显式版本**钉死**，不写 `<latest>`；前端依赖声明是 `^` / `~` 范围，实际安装版本由初始化时
+  生成的 `package-lock.json` 固定。具体版本以下面的版本表为准，不在别处重复抄写。
 - 集成测试用 **Testcontainers + 真 MySQL**，不用 H2——迁移脚本是 MySQL 方言，用 H2 等于把
   「测试环境与真实环境不一致」请回来。
 - `mvn test` 只跑 `*Test`（纯单元、不需要任何服务）是一条**刻意守住的约束**，靠 surefire/failsafe 的命名分工实现。
+
+### 版本表（真相源：模板文件）
+
+下表由 `scripts/check_consistency.py` 与模板机械比对：改模板就要改这里，反之亦然。
+它只登记**明确维护**的条目；被 Spring Boot 父 POM 管理的依赖（Flyway、MySQL 驱动、Testcontainers 等）
+不在这里强行写版本，也不尝试解析远程有效版本。
+
+<!-- consistency:versions:start -->
+| 标识 | 组件 | 版本 | 声明位置 |
+|---|---|---|---|
+| `spring-boot` | Spring Boot | `3.5.16` | `templates/backend/pom.xml` 的父 POM |
+| `mybatis-plus` | MyBatis-Plus | `3.5.17` | `mybatis-plus.version` 属性 |
+| `mapstruct` | MapStruct | `1.6.3` | `mapstruct.version` 属性 |
+| `lombok-mapstruct-binding` | Lombok–MapStruct binding | `0.2.0` | `lombok-mapstruct-binding.version` 属性 |
+| `jjwt` | jjwt | `0.12.7` | `jjwt.version` 属性 |
+| `springdoc` | springdoc | `2.9.1` | `springdoc.version` 属性 |
+| `jdk` | JDK | `21` | pom 的 `java.version` 与后端 JRE 镜像 |
+| `node` | Node（前端构建镜像） | `22` | `templates/frontend/Dockerfile` 的 `node:22-slim` |
+| `vue` | Vue | `^3.5.0` | `templates/frontend/package.json` |
+| `vite` | Vite | `^6.4.3` | 同上 |
+| `tailwindcss` | Tailwind CSS | `^4.3.3` | 同上；`@tailwindcss/vite` 必须同值 |
+| `typescript` | TypeScript | `~5.6.0` | 同上 |
+<!-- consistency:versions:end -->
 
 ## 二、前端（`frontend/`）
 
@@ -49,8 +72,10 @@ Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json`
 |---|---|
 | `docker-compose.dev.yml` | **只起数据库**；后端与前端在宿主机直跑（改代码不用重建镜像）。Docker 是本机 MySQL 的推荐启动方式，联通也可使用专用外部 MySQL；纯 `mvn test` 与前端门禁不需要数据库。 |
 | 后端 Dockerfile | 两阶段构建（maven → JRE）。`MAVEN_MIRROR` 开关决定是否用国内源 |
-| 前端 Dockerfile | **必须 glibc 基础镜像（`node:22-slim` 非 alpine）**——esbuild 没有 x64-musl 官方二进制；**必须有 `.dockerignore`**，否则宿主机 `node_modules` 会被送进构建上下文 |
+| 前端 Dockerfile | **必须 glibc 基础镜像（Node 的 slim 镜像，非 alpine）**——esbuild 没有 x64-musl 官方二进制；**必须有 `.dockerignore`**，否则宿主机 `node_modules` 会被送进构建上下文 |
 | `ci.yml` | 精简到「文档守卫 + 后端单测 + 前端类型检查与构建」。源项目那套（依赖扫描、Testcontainers、镜像冒烟、端到端）**不进骨架**——骨架阶段没有业务可跑 |
+| `dependabot.yml` | 每周为 Maven / npm / GitHub Actions 各提升级 PR，只提案、不自动合并；基础镜像与 MySQL 镜像**不在覆盖范围**，镜像升级仍靠人判断 |
+| 发布门禁 | `release.yml` 只在推 `v*` tag 时运行；升级 PR 走普通 `ci.yml`，既不拿部署 Secrets，也不会发布 |
 
 ## 四、部署章节（`--with-deploy`，默认不生成）
 

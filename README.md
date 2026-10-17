@@ -53,6 +53,7 @@ Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾�
 
 初始化剧本用到两类外部 skill，都**不随本仓库分发**：
 
+<!-- consistency:source-skills:start -->
 | 类 | skill | 官方仓库 |
 |---|---|---|
 | 衔接用 | `grill-with-docs`（含 `grilling`、`domain-modeling`） | [mattpocock/skills](https://github.com/mattpocock/skills)（MIT） |
@@ -61,6 +62,7 @@ Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾�
 | | `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)（仓库未声明许可） |
 | | `shadcn-vue` | [unovue/shadcn-vue](https://github.com/unovue/shadcn-vue)（MIT） |
 | | `ui-ux-pro-max` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)（MIT） |
+<!-- consistency:source-skills:end -->
 
 本地没有时，AI 会先用 `scripts/fetch_skills.py --check` 列出缺哪些，**经使用者一次确认后**才从官方仓库拉最新版；
 已装的一律不动。
@@ -130,7 +132,7 @@ JSON 只是机器可读的预览，正式生成仍使用去掉 `--json` / `--dry
 
 | 模板目录 | 落到新项目 | 开关 |
 |---|---|---|
-| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CLAUDE.md` / `GLOSSARY.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes`） | 总是 |
+| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CLAUDE.md` / `GLOSSARY.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes` / `.github/dependabot.yml`） | 总是 |
 | `rules/` | `.codebuddy/rules/`（四条，每次会话自动加载） | 总是 |
 | `commands/` | `.codebuddy/commands/`（收尾命令 `/wrap-up`） | 总是 |
 | `docs/` | `docs/`（地图 + 目录树 + ADR + 需求 + 设计 + 待办 + 会话工作台 + 开发规约） | 总是 |
@@ -192,9 +194,10 @@ AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git comm
 
 其他刻意的取舍：
 
-- 依赖版本**钉住**（Spring Boot 3.5.16 / MyBatis-Plus 3.5.17 / jjwt 0.12.7 / springdoc 2.9.1），不写 `<latest>`、不写范围版本；
+- 后端依赖版本**钉死**（清单见 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表），不写 `<latest>`；
+  前端用 `^` / `~` 范围，实际安装版本由初始化时生成的 `package-lock.json` 固定；
 - 集成测试用 **Testcontainers + 真 MySQL**，不用 H2——迁移脚本是 MySQL 方言，用 H2 等于把「测试环境与真实环境不一致」请回来；
-- 前端 Dockerfile **必须 glibc 基础镜像**（`node:22-slim` 非 alpine）——esbuild 没有 x64-musl 官方二进制；
+- 前端 Dockerfile **必须 glibc 基础镜像**（Node 的 slim 镜像，非 alpine）——esbuild 没有 x64-musl 官方二进制；
 - 模板里**没有任何真实凭据**：密钥、密码、服务器 IP 全是占位符，真实值一律走 GitHub Secrets；
 - 色值**不预设**：`tokens.css` 只给中性灰阶 + 一个标 TODO 的主色，产品身份留给新项目自己。
 
@@ -216,6 +219,7 @@ project-scaffold/
 │   └── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
+│   ├── check_consistency.py # 仓库自身维护检查：版本表与 skill 清单（离线、只读）
 │   └── fetch_skills.py      # 配套 skill 按需拉取（本地没有才拉，不覆盖）
 ├── tests/                   # 仓库自身离线回归测试（unittest，仅标准库）
 ├── .github/workflows/
@@ -231,13 +235,20 @@ project-scaffold/
 
 ```bash
 python -m unittest discover -s tests -v
+python scripts/check_consistency.py
 ```
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
-它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护和离线拉取流程。
+它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、离线拉取流程，
+以及 Dependabot 模板的结构与生成结果。
 
-`.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13），
-并在临时目录生成全开关项目、跑四条生成项目守卫。仓库级 CI **不覆盖**真实数据库、浏览器、Maven/npm 构建或外部 skill 拉取。
+`check_consistency.py` 是另一道只读门禁：把 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表
+与模板 `pom.xml` / `package.json` / Dockerfile 对齐，并核对四张配套 skill 清单表与 `fetch_skills.py` 的登记表。
+它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
+
+`.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13）与一致性检查，
+并在临时目录生成全开关项目、跑四条生成项目守卫。仓库级 CI **不覆盖**真实数据库、浏览器、Maven/npm 构建、
+外部 skill 拉取，也不验证 Dependabot 服务的实际开 PR 行为。
 
 ---
 

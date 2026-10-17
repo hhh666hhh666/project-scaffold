@@ -54,6 +54,10 @@ cd frontend && npm install && npm run typecheck
 ⚠️ `npm install` 之后要把生成的 `package-lock.json` **提交进库**（`npm ci` 依赖它，
 CI 上用它做缓存 key，版本守卫也比它）。
 
+✅ 锁文件入库、仓库推到 GitHub 之后，`.github/dependabot.yml` 才会开始工作：每周给 Maven / npm /
+GitHub Actions 各提一次升级 PR。它只提案，不自动合并、不触发部署，升级 PR 走的是普通 CI；
+补丁 / 小版本按组件家族分组，大版本单独提，合并与否由使用者判断。基础镜像与 MySQL 镜像**不在覆盖范围**。
+
 ### ③ 本地跑通
 
 先选一条数据库路径，不把 Docker 当成唯一前置：
@@ -172,6 +176,7 @@ ls docs/worklog/                     # 上一份工作台写到哪了
 
 用到的 skill 都来自官方仓库，**不随本 skill 分发**，分两组：
 
+<!-- consistency:source-skills:start -->
 | 组 | skill | 官方仓库 | 许可 |
 |---|---|---|---|
 | 衔接用 | `grill-with-docs`（转调 `grilling` + `domain-modeling`） | [mattpocock/skills](https://github.com/mattpocock/skills) | MIT |
@@ -180,6 +185,7 @@ ls docs/worklog/                     # 上一份工作台写到哪了
 | 设计组 | `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | 仓库未声明许可（只拉到本机，不再分发） |
 | 设计组 | `shadcn-vue` | [unovue/shadcn-vue](https://github.com/unovue/shadcn-vue)（默认分支 `dev`） | MIT |
 | 设计组 | `ui-ux-pro-max` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT |
+<!-- consistency:source-skills:end -->
 
 脚本里 `design` 是设计组 5 个的别名（含 `impeccable`）。
 

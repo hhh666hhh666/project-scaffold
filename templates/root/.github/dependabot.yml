@@ -1,0 +1,80 @@
+# 依赖升级提案：每周一次，只开 PR，不自动合并、不触发部署。
+# 覆盖 Maven（backend/）、npm（frontend/）与 GitHub Actions 三类；基础镜像与 MySQL 镜像不在其中。
+# 本文件用 JSON 写法（JSON 也是合法 YAML）：脚手架的自测只用 Python 标准库，能直接按 JSON 解析。
+# npm 需要先执行一次 npm install 并把 package-lock.json 提交入库，升级 PR 才有可维护的锁文件。
+{
+  "version": 2,
+  "updates": [
+    {
+      "package-ecosystem": "maven",
+      "directory": "/backend",
+      "schedule": {
+        "interval": "weekly",
+        "day": "tuesday",
+        "time": "09:30",
+        "timezone": "Asia/Shanghai"
+      },
+      "open-pull-requests-limit": 3,
+      "groups": {
+        "spring-boot-parent": {
+          "patterns": ["org.springframework.boot:spring-boot-starter-parent"],
+          "update-types": ["minor", "patch"]
+        },
+        "mybatis-plus": {
+          "patterns": ["com.baomidou:*"],
+          "update-types": ["minor", "patch"]
+        },
+        "jjwt": {
+          "patterns": ["io.jsonwebtoken:*"],
+          "update-types": ["minor", "patch"]
+        },
+        "mapstruct": {
+          "patterns": ["org.mapstruct:*", "org.projectlombok:lombok-mapstruct-binding"],
+          "update-types": ["minor", "patch"]
+        },
+        "maven-minor-patch": {
+          "patterns": ["*"],
+          "update-types": ["minor", "patch"]
+        }
+      }
+    },
+    {
+      "package-ecosystem": "npm",
+      "directory": "/frontend",
+      "schedule": {
+        "interval": "weekly",
+        "day": "tuesday",
+        "time": "09:30",
+        "timezone": "Asia/Shanghai"
+      },
+      "open-pull-requests-limit": 3,
+      "groups": {
+        "npm-runtime": {
+          "dependency-type": "production",
+          "update-types": ["minor", "patch"]
+        },
+        "npm-development": {
+          "dependency-type": "development",
+          "update-types": ["minor", "patch"]
+        }
+      }
+    },
+    {
+      "package-ecosystem": "github-actions",
+      "directory": "/",
+      "schedule": {
+        "interval": "weekly",
+        "day": "tuesday",
+        "time": "09:30",
+        "timezone": "Asia/Shanghai"
+      },
+      "open-pull-requests-limit": 3,
+      "groups": {
+        "actions-minor-patch": {
+          "patterns": ["*"],
+          "update-types": ["minor", "patch"]
+        }
+      }
+    }
+  ]
+}

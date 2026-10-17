@@ -112,3 +112,5 @@ templates/scripts/${LINK_CHECK_SCRIPT}
 
 生成后恒定存在的目录（空的补 `.gitkeep`）：`docs/adr`、`docs/design`、`docs/development`、
 `docs/operations`、`docs/requirements`、`docs/testing`、`docs/todo/archive`、`docs/worklog`。
+
+`.github/dependabot.yml` 随 `root/` 一起生成，不需要开关；它是固定的升级提案配置，不含变量。
