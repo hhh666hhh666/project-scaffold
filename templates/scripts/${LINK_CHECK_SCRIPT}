@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# 检查「文档指向的东西其实不存在」的两类情况，用作 CI 门禁与本地提交前自检。
+# 检查「文档指向的东西其实不存在」的几类情况，用作 CI 门禁与本地提交前自检：
+# Markdown 相对链接、CLAUDE.md 的 @导入、脚本 / 配置文本里提到的仓库路径。
 #
-#   bash scripts/${LINK_CHECK_SCRIPT}              # 两类都查（默认）
-#   bash scripts/${LINK_CHECK_SCRIPT} --no-scan-refs   # 只查 Markdown 相对链接
+#   bash scripts/${LINK_CHECK_SCRIPT}              # 全部都查（默认）
+#   bash scripts/${LINK_CHECK_SCRIPT} --no-scan-refs   # 不查脚本 / 配置文本里的路径
 #
 # ⚠️ 本文件必须是 LF 换行，CRLF 会让 bash 报 bad interpreter（见 .gitattributes）。
 # ⚠️ 只扫**已入库**的文件（git ls-files），本地新建还没 git add 的文件会被跳过。
@@ -106,6 +107,35 @@ for hit in "${MD_HITS[@]}"; do
 
   dir_of "$f"
   target_exists "$DIR" "$path" || report "$f" "$path"
+done
+
+# ---- 1b. CLAUDE.md 的 @导入 ----
+# Claude Code 靠 CLAUDE.md 里的 `@路径` 行把 AGENTS.md 与规则拉进上下文；
+# 导入的文件改名或删掉不会报任何错，只是规则悄悄不再加载——所以单独验。
+# 只认「整行就是 @路径」的写法，正文里的 @提及（邮箱、npm 作用域包）不算。
+mapfile -t IMPORT_HITS < <(
+  list_tracked 'CLAUDE.md' \
+    | xargs -0 -r awk '
+        /^[[:space:]]*```/ { inf = !inf; next }
+        inf { next }
+        match($0, /^[[:space:]]*@[^[:space:]]+[[:space:]]*$/) {
+          s = $0; gsub(/^[[:space:]]*@|[[:space:]]*$/, "", s)
+          print FILENAME ":" s
+        }
+      ' 2>/dev/null \
+    | tr -d '\r' || true
+)
+
+echo "==> 检查 CLAUDE.md 的 @导入（${#IMPORT_HITS[@]} 处）"
+
+for hit in "${IMPORT_HITS[@]}"; do
+  [ -z "$hit" ] && continue
+  f="${hit%%:*}"
+  path="${hit#*:}"
+  # ~/ 开头的是个人目录，不归仓库管
+  case "$path" in '~/'*) continue ;; esac
+  dir_of "$f"
+  target_exists "$DIR" "$path" || report "$f" "@$path"
 done
 
 # ---- 2. 脚本 / 配置 / 源码文本里提到的仓库路径 ----

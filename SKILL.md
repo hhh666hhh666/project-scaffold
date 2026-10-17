@@ -32,8 +32,8 @@ python <skill>/scripts/scaffold.py --name my-app \
     --package com.example.myapp --out E:/code/my-app     # 参数模式
 ```
 
-脚本只用 Python 标准库，Python 3.11+ 即可（无第三方依赖）。Windows 上若用受管 Python，
-路径形如 `~/.workbuddy/binaries/python/versions/3.13.12/python.exe`；Linux / macOS 直接 `python3`。
+脚本只用 Python 标准库，Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，
+Linux / macOS 一般是 `python3`；装了多个版本时先确认命中的是 3.11+。
 
 三个**互相独立**的开关，默认都不开：
 
@@ -52,18 +52,25 @@ python <skill>/scripts/scaffold.py --name my-app \
 
 照 `references/POST-SCAFFOLD.md` 的六阶段把新项目从「入库基线」带到「CI 首绿」：
 
-① 入库基线 → ② 依赖就位 → ③ 本地跑通 → ④ 门禁复核 → ⑤ **入库远程（唯一硬断点）** → ⑥ 完成衔接。
+① 入库基线 → ② 依赖就位 → ③ 本地跑通 → ④ 门禁复核 → ⑤ **入库远程（建仓前问仓库名与公开/私有）** → ⑥ 完成衔接。
 
 判据一律「**看产物**」（端点 200、页面那行字来自后端、守卫打印通过、CI 绿），不看退出码。
 
+⚠️ **每次 `git commit` / `git push` 之前都先问使用者**（列出文件与提交信息，同一阶段可一次确认）。
+
 ### 3. 衔接一：提示式触发需求打磨
 
-初始化完成后打总结并给出可直接复制的触发串，**等用户手动发 `@skill:grill-with-docs`**。
+先检查配套 skill：当前会话没有 `grill-with-docs`，或设计组 5 个（`impeccable` 等）有缺时，
+用 `scripts/fetch_skills.py` 从官方仓库拉最新版——**先 `--check` 给使用者看清单（含每个 skill 装到哪一步），
+一次确认后再拉**（步骤见剧本「衔接段」）。拉到的**不是上游完全体**：只装 skill 目录，hooks、安装器、模板不装。
+
+初始化完成后打总结并给出可直接复制的触发串，**等用户手动触发**
+（WorkBuddy 写 `@skill:grill-with-docs`，Claude Code 写 `/grill-with-docs`）。
 不自动调、不催促；推迟/跳过都允许。⚠️ **不要改 grill-with-docs 的任何文件**。
 
 ### 4. 衔接二：提示式触发产品与设计
 
-需求打磨完成后同款提示 `@skill:impeccable`。范围：**当场只做 `init`**（写实 `PRODUCT.md`）；
+需求打磨完成后同款提示（`@skill:impeccable` / `/impeccable`）。范围：**当场只做 `init`**（写实 `PRODUCT.md`）；
 `document`（派生 `DESIGN.md`）**后置到第一个界面成型后**。
 
 ### 5. 收尾：开工提示
@@ -83,6 +90,8 @@ python <skill>/scripts/scaffold.py --name my-app \
 ## 注意事项（容易做错的地方）
 
 - **不自动调用 grill 或 impeccable**——两处衔接都是「提示 + 用户手动触发」。
+- **配套 skill 不随本 skill 分发**：本地没有才拉，拉之前先问；已有的绝不覆盖（使用者可能改过）。
+- **提交、推送、建远程仓库、拉配套 skill，四件事都先问再做**。
 - **`PRODUCT.md` 与 `DESIGN.md` 只建空文件**，内容是 impeccable 的产物；别替它写骨架。
 - **不要在别的仓库里生成产物**；`--out` 必须显式给或交互确认。
 - **模板里没有也不该有真实凭据**（密钥、密码、服务器 IP 全是占位符）。
@@ -95,7 +104,8 @@ python <skill>/scripts/scaffold.py --name my-app \
 
 | 文件 | 看什么 |
 |---|---|
-| `references/POST-SCAFFOLD.md` | ★ 初始化剧本（六阶段 + 断点 + 判据 + 本机坑 + 衔接段） |
+| `references/POST-SCAFFOLD.md` | ★ 初始化剧本（六阶段 + 确认点 + 判据 + 常见坑 + 衔接段） |
+| `scripts/fetch_skills.py` | 配套 skill 按需拉取（本地没有才拉、不覆盖、`--check` 只查不拉） |
 | `references/VARIABLES.md` | 变量表、占位符语法（只有全大写会被替换）、目录映射 |
 | `references/DOC-SYSTEM.md` | 文档体系搬了什么、改成什么样、地图与树为什么成对 |
 | `references/TECH-STACK.md` | 后端 / 前端 / Docker / CI 的取舍，以及**不搬**的业务件 |

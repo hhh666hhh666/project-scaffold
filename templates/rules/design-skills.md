@@ -19,6 +19,7 @@ alwaysApply: true
 | 用 shadcn-vue 组件（`add` / `search` / preset） | `shadcn-vue`（官方） | ⚠️ `user-invocable: false`，**只能 AI 自己用，@ 不到** |
 
 **一个都不设 `alwaysApply`**（不常驻注入）；`impeccable` 不装 hooks（探测器只在被主动调用时跑）。
+这些 skill 都**只装 skill 目录、不是上游完全体**（hooks、CLI 安装器、模板不装），差在哪见 `docs/design/设计skill清单.md`；**别用上游的安装器去补齐**。
 **本机没装某个 skill 就跳过它**，别为此停下来等安装。
 
 ## ⚠️ 唯一硬约束：`ui-ux-pro-max` 只查不写

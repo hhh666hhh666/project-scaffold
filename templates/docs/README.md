@@ -12,11 +12,12 @@
 | 路径 | 用途 | 读者 | 真相源 |
 |------|------|------|--------|
 | [../README.md](../README.md) | 上手：定位、功能、跑起来、配置要点、CI 与部署 | 所有人 | 代码与脚本 |
-| [../CONTEXT.md](../CONTEXT.md) | 领域术语表（只收本项目独有的词，不含实现） | 读代码的人 | 本文件 |
+| [../GLOSSARY.md](../GLOSSARY.md) | 领域术语表（只收本项目独有的词，不含实现） | 读代码的人 | 本文件 |
 | [../PRODUCT.md](../PRODUCT.md) | 产品真相：受众 / 用途 / 定位 / 语气 / 约束 | 判断「某个设计对不对」的人 | 本文件（由 impeccable 生成） |
 | [../DESIGN.md](../DESIGN.md) | 视觉系统的**可读快照**（色板 / 排版 / 材质口径） | 改前端视觉的人 | **从 `frontend/src/styles/tokens.css` 派生**；过时了重新生成 |
 | [../CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | 所有人 | `git tag` |
 | [../AGENTS.md](../AGENTS.md) | **给 AI 的规矩**（跨工具摘要，只做路由） | AI / 未来的自己 | `.codebuddy/rules/` |
+| [../CLAUDE.md](../CLAUDE.md) | Claude Code 的入口：只导入 `AGENTS.md` 与四条规则，不写内容 | Claude Code | `AGENTS.md` + `.codebuddy/rules/` |
 | [../.codebuddy/commands/wrap-up.md](../.codebuddy/commands/wrap-up.md) | 收尾自检：把未决事项落 `docs/todo/`、补文档与引用、跑守卫脚本 | AI / 收尾时 | 本文件 |
 | [../scripts/${LINK_CHECK_SCRIPT}](../scripts/${LINK_CHECK_SCRIPT}) | md 相对链接与路径引用自检，提交前跑 | 提交代码的人 | 文件系统 |
 | [../scripts/${TODO_ARCHIVE_SCRIPT}](../scripts/${TODO_ARCHIVE_SCRIPT}) | 断言已结案的待办都已移入 `docs/todo/archive/` | 结案待办的人 / CI | 文件系统 |
@@ -63,7 +64,7 @@
 | 你想做的事 | 从哪开始 |
 |------------|----------|
 | 在一台新机器上跑起来 | [../README.md](../README.md) |
-| 知道某个词在代码里指什么 | [../CONTEXT.md](../CONTEXT.md) |
+| 知道某个词在代码里指什么 | [../GLOSSARY.md](../GLOSSARY.md) |
 | 判断某个改动超不超当前范围 | [requirements/scope.md](./requirements/scope.md) |
 | 改代码前摸清设计与规则 | [design/](./design/) 下对应主题 + 对应 ADR |
 | 想知道还有什么没定 | [todo/](./todo/) |

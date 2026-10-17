@@ -20,13 +20,14 @@
 | 常驻规则 4 条 | **移植重写 + 部分改名** | 三条改名成中性英文名（`unresolved-items` / `docs-with-code` / `session-log`），这样文档正文里指到它们时不会出现「源项目专属的规则名」；`design-skills.md` 保留原名（它本来就不含源项目专属词）。每条 ≤100 行的预算保留 |
 | `/wrap-up` 收尾命令 | **移植重写** | 三件套的第三件（规则让 AI 知道 / 命令让 AI 记得做 / 脚本+CI 让 AI 不做就过不去）。脚本名用 `${LINK_CHECK_SCRIPT}` 之类的占位符，生成时才变成真名 |
 | `AGENTS.md` | **参数化** | 只做路由 + 收尾清单，不复述规则内容（它每次会话也会加载，复述＝重复的上下文税） |
+| `CLAUDE.md` | **新增** | 只放 `@AGENTS.md` 与四条规则的 `@导入`，不写内容——让 Claude Code 也能每次加载规则，规则仍只有一份原件；导入断了由链接守卫报红 |
 | 文档地图 + 目录树 | **骨架化，成对处理** | 见下节 |
 | ADR 说明 | **移植重写** | 收录标准三条（难反转 / 不看上下文会意外 / 有真实取舍）是通用的；源里「格式照 0006 抄」改成**内联一份格式模板** |
 | TODO 说明 | **移植重写** | 带上 v2 四段格式（`背景` / `可选方案`+`➡️ 倾向` / `待确认` / `更新记录`）。这条格式是被真用过的，不是新设计的 |
 | worklog 说明 | **原样复制** | 纯格式文件，无项目专属引用 |
 | 开发协作 | **骨架化** | 分支/提交/PR 的结构保留，内容换占位——协作现实每家不同 |
 | `.gitattributes` / `.gitignore` | **移植 / 补写** | `.sh` 必须 LF 是通用约束；`.gitignore` 是**源计划漏了后来补的**（不补的话「先装依赖、后 git add」会把 `node_modules` 带进库） |
-| 根三件套 | **骨架化** | README / CONTEXT / CHANGELOG（Keep a Changelog 结构保留） |
+| 根三件套 | **骨架化** | README / GLOSSARY / CHANGELOG（Keep a Changelog 结构保留）。术语表叫 `GLOSSARY.md` 而不是 `CONTEXT.md`：与 domain-modeling skill 的上游命名一致（上游 2026-09-17 改名） |
 | `PRODUCT.md` / `DESIGN.md` | **只建空文件** | 它们是 **impeccable** 的产物：`PRODUCT.md` 由 `impeccable init` 写实，`DESIGN.md` 由 `impeccable document` 从 `tokens.css` 派生。**模板不填内容、不留骨架** |
 | 守卫脚本 4 条 | **参数化** | 逻辑通用，改掉硬编码路径与模块名 |
 

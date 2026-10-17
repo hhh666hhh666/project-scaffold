@@ -1,8 +1,10 @@
 # ${PROJECT_NAME} · 给 AI 的规矩
 
-适用任何 AI 工具。**权威版本在 `.codebuddy/rules/`（四条，每次会话自动加载）；本文件只做路由与收尾清单，不复述规则内容**——两边冲突以那边为准，新增或改名规则要同步下面这张表。
+适用任何 AI 工具。**权威版本在 `.codebuddy/rules/`（四条）；本文件只做路由与收尾清单，不复述规则内容**——两边冲突以那边为准。
 
-Spring Boot + Vue 的自用项目。领域词看 `CONTEXT.md`，文档总索引看 `docs/README.md`。
+怎么加载：WorkBuddy / CodeBuddy 每次会话自动加载 `.codebuddy/rules/`；Claude Code 读根 `CLAUDE.md`，它把本文件与四条规则一并导入；其他工具只读到本文件，按下表去读全文。**新增或改名规则要同步下面这张表和 `CLAUDE.md` 的导入行**（导入断了链接守卫会报红）。
+
+Spring Boot + Vue 的自用项目。领域词看 `GLOSSARY.md`，文档总索引看 `docs/README.md`。
 
 ## 纪律 → 去哪读全文
 

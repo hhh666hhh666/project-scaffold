@@ -27,7 +27,7 @@ alwaysApply: true
 | 配置、密钥、`.env` | `docs/operations/configuration.md` |
 | 测试策略 | `docs/testing/` |
 | CI / 镜像构建 | `.github/workflows/` |
-| 领域词汇 | 根 `CONTEXT.md` |
+| 领域词汇 | 根 `GLOSSARY.md` |
 | ADR（新卡 / 改结论 / 推翻与收窄） | `docs/requirements/scope.md`——核对**「已定范围与约束」表与「明确不做」清单**要不要跟着改：scope 是范围的真相源、ADR 是「为什么」，约束表里的 ADR 链接必须指向**当前**结论，漏改 = 索引指旧话 |
 | 受众 / 语气 / 定位（产品真相） | 根 `PRODUCT.md` |
 | 本次迭代交付项 | `CHANGELOG.md` |

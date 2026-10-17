@@ -31,17 +31,42 @@
 
 ### 安装
 
-把整个目录复制到 Skill 目录即可：
+把整个目录复制到所用 AI 工具的 skill 目录即可：
 
 ```bash
-# WorkBuddy / Claude Code（用户级）
+# WorkBuddy（用户级）
 cp -r project-scaffold ~/.workbuddy/skills/
 
-# 或作为项目级 skill
-cp -r project-scaffold .workbuddy/skills/
+# Claude Code（用户级）
+cp -r project-scaffold ~/.claude/skills/
+
+# 或作为项目级 skill：放进项目里的 .workbuddy/skills/ 或 .claude/skills/
 ```
 
 安装后对话里说一句「**我要做一个 xx 系统**」就会触发。
+
+生成的项目两边都能用：WorkBuddy / CodeBuddy 自动加载 `.codebuddy/rules/`；
+Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾命令 `/wrap-up` 只在 WorkBuddy 可用，
+其他工具按 `AGENTS.md` 里的收尾清单做。
+
+### 配套 skill（按需拉取）
+
+初始化剧本用到两类外部 skill，都**不随本仓库分发**：
+
+| 类 | skill | 官方仓库 |
+|---|---|---|
+| 衔接用 | `grill-with-docs`（含 `grilling`、`domain-modeling`） | [mattpocock/skills](https://github.com/mattpocock/skills)（MIT） |
+| 设计组（5 个） | `impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable)（Apache-2.0） |
+| | `make-interfaces-feel-better` | [jakubkrehel/make-interfaces-feel-better](https://github.com/jakubkrehel/make-interfaces-feel-better)（MIT） |
+| | `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)（仓库未声明许可） |
+| | `shadcn-vue` | [unovue/shadcn-vue](https://github.com/unovue/shadcn-vue)（MIT） |
+| | `ui-ux-pro-max` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)（MIT） |
+
+本地没有时，AI 会先用 `scripts/fetch_skills.py --check` 列出缺哪些，**经使用者一次确认后**才从官方仓库拉最新版；
+已装的一律不动。
+
+⚠️ **拉到的不是上游「完全体」**：只复制 skill 目录、不跑上游安装器，所以 `impeccable` 的 hooks、
+`ui-ux-pro-max` 的 CLI 安装器 / 模板 / 展示页都不装。这是刻意的取舍，理由记在生成项目的 `docs/design/设计skill清单.md` 里。
 
 ### 用法
 
@@ -87,7 +112,7 @@ python scripts/scaffold.py --name my-app \
 
 | 模板目录 | 落到新项目 | 开关 |
 |---|---|---|
-| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CONTEXT.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes`） | 总是 |
+| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CLAUDE.md` / `GLOSSARY.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes`） | 总是 |
 | `rules/` | `.codebuddy/rules/`（四条，每次会话自动加载） | 总是 |
 | `commands/` | `.codebuddy/commands/`（收尾命令 `/wrap-up`） | 总是 |
 | `docs/` | `docs/`（地图 + 目录树 + ADR + 需求 + 设计 + 待办 + 会话工作台 + 开发规约） | 总是 |
@@ -131,9 +156,12 @@ bash scripts/check-version.sh        # 版本字符串与 git tag 不一致 → 
 | ③ | 本地跑通 | 起数据库 → 配本地值 → 起后端 → 起前端 | 后端 200；**首页那行字来自后端** |
 | ④ | 门禁复核 | 守卫 + typecheck + `mvn test` 再跑一遍 | 全绿 |
 | ⑤ | 入库远程 ⛔ | `gh repo create` → push → 盯 CI | **CI 首绿**（红着不算完） |
-| ⑥ | 完成衔接 | 提示手动触发需求打磨 | 提示已给出 |
+| ⑥ | 完成衔接 | 检查配套 skill → 提示手动触发需求打磨 | 提示已给出 |
 
-判据一律「**看产物**」，不看退出码。⑤ 是唯一的硬断点：建远程仓库之前必须停下来问使用者仓库名与公开/私有。
+判据一律「**看产物**」，不看退出码。
+
+AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git commit` / `git push`（同一阶段可一次确认）、
+⑤ 建远程仓库（问仓库名与公开/私有）、⑥ 拉取本地没有的配套 skill。
 
 ---
 
@@ -161,7 +189,7 @@ project-scaffold/
 ├── SKILL.md                 # Skill 入口：工作流、会话边界、注意事项
 ├── README.md                # 本文件
 ├── references/              # 给 AI 看的详细规范
-│   ├── POST-SCAFFOLD.md     # ★ 初始化剧本（六阶段 + 断点 + 判据 + 衔接段）
+│   ├── POST-SCAFFOLD.md     # ★ 初始化剧本（六阶段 + 确认点 + 判据 + 衔接段）
 │   ├── VARIABLES.md         # 变量表、占位符语法（只有全大写会被替换）、目录映射
 │   ├── DOC-SYSTEM.md        # 文档体系搬了什么、改成什么样
 │   ├── TECH-STACK.md        # 后端 / 前端 / Docker / CI 的取舍，以及不搬的业务件
@@ -169,7 +197,8 @@ project-scaffold/
 │   ├── TESTING-SYSTEM.md    # 测试规范；e2e 与探索测试为什么明确不沉淀
 │   └── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
 ├── scripts/
-│   └── scaffold.py          # 生成脚本（仅标准库）
+│   ├── scaffold.py          # 生成脚本（仅标准库）
+│   └── fetch_skills.py      # 配套 skill 按需拉取（本地没有才拉，不覆盖）
 └── templates/               # 模板文件（见上文「生成什么」）
 ```
 

@@ -375,7 +375,8 @@ def generate(args: argparse.Namespace) -> int:
         "    # 前端\n"
         "    cd frontend && npm install && npm run typecheck\n"
         "\n==> 然后进初始化：按 skill 里的初始化剧本（references/POST-SCAFFOLD.md）\n"
-        "    从「入库基线」一路走到「CI 首绿」；完成后提示用户发 @skill:grill-with-docs 接需求打磨。"
+        "    从「入库基线」一路走到「CI 首绿」；每次提交 / 推送前先问使用者。\n"
+        "    完成后检查配套 skill（缺了先问再拉），再提示使用者手动触发 grill-with-docs 接需求打磨。"
     )
     return 0
 

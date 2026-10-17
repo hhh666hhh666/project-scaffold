@@ -13,6 +13,9 @@
   它的 `--persist` 会往仓库根写一份自称 "Global Source of Truth" 的 `MASTER.md`，
   那等于塞进**第二份设计真相**，与「真相源 = `tokens.css`」正面冲突。只当查询台用。
 - 「本机没装某个 skill 就跳过它，别停下来等安装」——这条是模板加的，避免新机器上的死等。
+  装不装由初始化剧本第 ⑥ 阶段统一问一次（`scripts/fetch_skills.py`）；不愿装就按这条跳过。
+- 这些 skill **只装 skill 目录、不是上游完全体**：`impeccable` 不装 hooks，`ui-ux-pro-max` 只装运行时核心。
+  **别用上游的安装器补齐**，它们会把被刻意舍弃的部分装回来。
 
 ## ② 档案层：`docs/design/设计skill清单.md`
 
