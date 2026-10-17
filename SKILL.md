@@ -24,16 +24,28 @@ description: 按一套「有纪律、能跑、能测」的骨架生成新项目�
 
 ⚠️ 调用时**没有**这句 → 先问一句「做什么」再开工。别凭空猜一个名字。
 
-### 1. 问变量 → 跑脚本
+### 1. 对话收集变量 → dry-run → 确认后生成
+
+先在对话里收集项目意图、项目名、Java 包名、**绝对输出目录**、版本、端口、数据库名、额外模块和三个可选章节；没有指定的开关明确按关闭处理，不能静默猜测。
 
 ```bash
-python <skill>/scripts/scaffold.py                       # 无参数 → 交互问答
+# 先用完整且最终的参数预览；AI 不调用无参数交互，避免 input() 阻塞会话
 python <skill>/scripts/scaffold.py --name my-app \
-    --package com.example.myapp --out E:/code/my-app     # 参数模式
+    --package com.example.myapp --out E:/code/my-app --dry-run
+
+# 使用与预览完全相同的参数正式生成
+python <skill>/scripts/scaffold.py --name my-app \
+    --package com.example.myapp --out E:/code/my-app
 ```
 
-脚本只用 Python 标准库，Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，
-Linux / macOS 一般是 `python3`；装了多个版本时先确认命中的是 3.11+。
+先把 dry-run 的参数、目标目录状态、开关和文件清单展示给使用者，确认后才执行第二条；
+任何参数变化（尤其是 `--out`、模块、可选章节或 `--force`）都要重新预览。dry-run 只预览文件计划，
+不代表数据库、后端或前端已经跑通。
+
+无参数运行仍保留给人在终端里的交互问答；AI 调用一律使用显式参数模式。脚本只用 Python 标准库，
+Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Linux / macOS 一般是 `python3`；
+装了多个版本时先确认命中的是 3.11+。脚本本身允许省略 `--out` 并默认 `./<name>`，但 AI 不得依赖这个默认值，
+必须使用已确认的绝对输出目录。
 
 三个**互相独立**的开关，默认都不开：
 
@@ -83,13 +95,14 @@ Linux / macOS 一般是 `python3`；装了多个版本时先确认命中的是 3
 ## 会话边界
 
 默认**一气呵成**；允许在大阶段之间断开（生成 / 初始化 / 需求打磨 / 产品与设计）。
-续跑靠剧本 + 项目现场自检（`git log` / `docker ps` / 四条守卫 / 已有文档），**不建跨会话状态文件**。
+续跑靠剧本 + 项目现场自检（`git log` / 所选数据库的连通状态 / 四条守卫 / 已有文档），**不建跨会话状态文件**。
 
 ---
 
 ## 注意事项（容易做错的地方）
 
 - **不自动调用 grill 或 impeccable**——两处衔接都是「提示 + 用户手动触发」。
+- **生成前先 dry-run 并确认**：AI 先展示完整参数、目标目录状态、开关与文件清单，得到确认后用同一组参数生成；`--force` 或任何参数变化都要重新预览。
 - **配套 skill 不随本 skill 分发**：本地没有才拉，拉之前先问；已有的绝不覆盖（使用者可能改过）。
 - **提交、推送、建远程仓库、拉配套 skill，四件事都先问再做**。
 - **`PRODUCT.md` 与 `DESIGN.md` 只建空文件**，内容是 impeccable 的产物；别替它写骨架。

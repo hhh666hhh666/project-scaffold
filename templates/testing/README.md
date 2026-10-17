@@ -36,7 +36,8 @@
 后端分两档命令，**这一条是要守住的约束**：
 
 - `mvn -B -ntp test` —— 与 CI 同一条命令，只跑纯单元测试，**不需要 Docker**；
-- `mvn -B -ntp verify` —— 多跑接口与集成层（真 Spring + 真 MySQL，由 Testcontainers 自己起），**需要 Docker**。
+- `mvn -B -ntp verify` —— 多跑接口与集成层（真 Spring + 真 MySQL，由 Testcontainers 自己起），**需要 Docker**；
+- 本地前后端联通也需要可访问的 MySQL，但可以使用专用外部 MySQL，不等同于必须使用 Docker。
 
 两者的分界靠**文件名**（`*Test` 归 surefire、`*IT` 归 failsafe），具体配置以 `backend/pom.xml` 为准——本文件不复制。
 

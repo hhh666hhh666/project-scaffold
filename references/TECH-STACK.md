@@ -47,7 +47,7 @@ Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json`
 
 | 部件 | 取舍 |
 |---|---|
-| `docker-compose.dev.yml` | **只起数据库**；后端与前端在宿主机直跑（改代码不用重建镜像） |
+| `docker-compose.dev.yml` | **只起数据库**；后端与前端在宿主机直跑（改代码不用重建镜像）。Docker 是本机 MySQL 的推荐启动方式，联通也可使用专用外部 MySQL；纯 `mvn test` 与前端门禁不需要数据库。 |
 | 后端 Dockerfile | 两阶段构建（maven → JRE）。`MAVEN_MIRROR` 开关决定是否用国内源 |
 | 前端 Dockerfile | **必须 glibc 基础镜像（`node:22-slim` 非 alpine）**——esbuild 没有 x64-musl 官方二进制；**必须有 `.dockerignore`**，否则宿主机 `node_modules` 会被送进构建上下文 |
 | `ci.yml` | 精简到「文档守卫 + 后端单测 + 前端类型检查与构建」。源项目那套（依赖扫描、Testcontainers、镜像冒烟、端到端）**不进骨架**——骨架阶段没有业务可跑 |

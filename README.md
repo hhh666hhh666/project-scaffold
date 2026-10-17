@@ -70,15 +70,22 @@ Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾�
 
 ### 用法
 
-```bash
-# 交互问答（不带参数）
-python scripts/scaffold.py
+人工在自己的终端里可以不带参数进入交互问答；AI 调用时不要使用交互模式（会停在 `input()` 等待输入），
+应先在对话里确认变量，再用显式参数模式。AI 必须显式传入已经确认的绝对 `--out`，不依赖脚本的 `./<name>` 默认值。
 
-# 参数模式
+```bash
+# 先预览：把这组最终参数的文件计划、开关与目标目录状态展示给使用者
+python scripts/scaffold.py --name my-app \
+    --package com.example.myapp \
+    --out E:/code/my-app --dry-run
+
+# 使用完全相同的参数生成；参数变化或要加 --force 时必须重新 dry-run
 python scripts/scaffold.py --name my-app \
     --package com.example.myapp \
     --out E:/code/my-app
 ```
+
+`--dry-run` 只预览生成文件，不代表数据库、后端或前端已经跑通；生成前确认不替代后续 commit、push、建远程仓库和拉配套 skill 的确认点。
 
 脚本**只用 Python 标准库**，Python 3.11+ 即可，无任何第三方依赖。
 
@@ -147,13 +154,13 @@ bash scripts/check-version.sh        # 版本字符串与 git tag 不一致 → 
 
 ## 初始化剧本：从「生成完」到「CI 首绿」
 
-生成完不停拍。照 `references/POST-SCAFFOLD.md` 走六阶段：
+生成完不停拍。先完成上面的 dry-run 总览确认，再照 `references/POST-SCAFFOLD.md` 走六阶段：
 
 | # | 阶段 | 步骤 | 过线判据 |
 |---|------|------|----------|
 | ① | 入库基线 | `git init` → `git add -A` → 跑四条守卫 → 首次提交 | 四条守卫全绿 |
 | ② | 依赖就位 | `mvn -B -ntp test`；`npm install && npm run typecheck` | 后端单测通过、前端无类型错误、锁文件入库 |
-| ③ | 本地跑通 | 起数据库 → 配本地值 → 起后端 → 起前端 | 后端 200；**首页那行字来自后端** |
+| ③ | 本地跑通 | 选择 Docker MySQL 或专用外部 MySQL → 配本地值 → 起后端 → 起前端 | 有 MySQL 时后端 200、**首页那行字来自后端**；没有 MySQL 时明确记录联通项受阻 |
 | ④ | 门禁复核 | 守卫 + typecheck + `mvn test` 再跑一遍 | 全绿 |
 | ⑤ | 入库远程 ⛔ | `gh repo create` → push → 盯 CI | **CI 首绿**（红着不算完） |
 | ⑥ | 完成衔接 | 检查配套 skill → 提示手动触发需求打磨 | 提示已给出 |
@@ -204,14 +211,27 @@ project-scaffold/
 
 ---
 
+## 本仓库自测
+
+这是脚手架仓库自身的离线回归测试，不是生成项目里的 Java 测试：
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
+它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用、可选开关、覆盖保护和离线拉取流程；
+生成项目四条 Bash 守卫的真实运行仍以生成后临时冒烟或目标项目 CI 为准。
+
+---
+
 ## 环境要求
 
-生成产物要跑起来，需要：
+生成脚本本身只需要 **Python 3.11+**。生成项目的基础门禁需要 **JDK 21+**、**Maven 3.9+**、
+**Node.js 22+** 和 **npm**；后端纯单测与前端 typecheck/build 不需要 Docker 或数据库。
 
-- **JDK 21+**、**Maven 3.9+**（或用后端 Dockerfile 内的 Maven）
-- **Node.js 22+**、**npm**
-- **Docker** + Docker Compose（dev 环境只用它起数据库）
-- **Python 3.11+**（仅用于跑生成脚本与生成 JWT 随机密钥）
+要跑真实后端并验证前后端联通，需要一个可访问的 **MySQL 8**，可以用 Docker Compose 启动本机库，
+也可以使用专用外部 MySQL。Testcontainers 集成测试、镜像冒烟与发布流程仍需要容器运行环境。
 
 ---
 

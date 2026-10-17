@@ -334,16 +334,31 @@ def generate(args: argparse.Namespace) -> int:
     keeps = plan_keepfiles(out, ctx, extra_modules, [dst for _, dst in planned])
 
     # 幂等保护：目录非空就拒绝（模板文件已存在必然意味着目录非空，所以一条判断就够）
+    if out.exists() and not out.is_dir():
+        print(f"==> 输出路径不是目录：{out}", file=sys.stderr)
+        return 2
     if out.exists() and any(out.iterdir()) and not args.force and not args.dry_run:
         existing = sum(1 for _, dst in planned if dst.exists())
         print(f"==> 目标目录非空：{out}（其中 {existing} 个模板产物已存在）\n"
               "    加 --force 才会覆盖模板产物（不会删除你的其他文件）。", file=sys.stderr)
         return 2
 
+    if not out.exists():
+        target_state = "不存在（将新建）"
+    elif any(out.iterdir()):
+        existing = sum(1 for _, dst in planned if dst.exists())
+        target_state = f"非空（{existing} 个模板产物已存在，{'将覆盖' if args.force else '正式执行会拒绝'}）"
+    else:
+        target_state = "空目录（将写入）"
+
     print(f"==> 项目：{ctx['PROJECT_NAME']}  包：{ctx['PACKAGE']}  输出：{out}")
+    print(f"==> 版本：{ctx['VERSION']}  数据库：{ctx['DB_NAME']}")
+    print(f"==> 端口：backend={ctx['BACKEND_PORT']} frontend={ctx['FRONTEND_PORT']} web={ctx['WEB_PORT']}")
+    print(f"==> 额外模块：{', '.join(extra_modules) if extra_modules else '无'}")
     print(f"==> 可选章节：deploy={args.with_deploy} ops={args.with_ops} testing={args.with_testing}")
+    print(f"==> 目标状态：{target_state}  force={args.force}")
     if args.dry_run:
-        print("\n==> dry-run：以下文件将被创建（不落盘）")
+        print("\n==> dry-run：以下文件将被创建或覆盖（不落盘）")
         for dst in [dst for _, dst in planned] + keeps:
             print("    " + rel_posix(dst, out))
         print(f"\n    共 {len(planned) + len(keeps)} 个文件 / 占位")
@@ -369,14 +384,14 @@ def generate(args: argparse.Namespace) -> int:
     print(
         "\n==> 下一步（本地验证）\n"
         f"    cd {out}\n"
-        "    docker compose -f docker-compose.dev.yml up -d          # 起数据库\n"
-        "    # 后端\n"
+        "    # 基础门禁（不需要 Docker 或数据库）\n"
         "    cd backend && mvn -B -ntp test\n"
-        "    # 前端\n"
         "    cd frontend && npm install && npm run typecheck\n"
+        "    # 有数据库时再按 references/POST-SCAFFOLD.md 选择 Docker MySQL 或专用外部 MySQL\n"
         "\n==> 然后进初始化：按 skill 里的初始化剧本（references/POST-SCAFFOLD.md）\n"
-        "    从「入库基线」一路走到「CI 首绿」；每次提交 / 推送前先问使用者。\n"
-        "    完成后检查配套 skill（缺了先问再拉），再提示使用者手动触发 grill-with-docs 接需求打磨。"
+        "    先选择 Docker MySQL、专用外部 MySQL，或暂时只做不依赖数据库的门禁；\n"
+        "    没有 MySQL 时不要宣称本地全链路已跑通，获得数据库后再补真实联通验收。\n"
+        "    完成后检查配套 skill（缺了先问再拉），再提示使用者手动触发 grill-with-docs。"
     )
     return 0
 

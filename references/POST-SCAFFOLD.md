@@ -1,6 +1,8 @@
 # 初始化剧本（生成之后怎么走）
 
 **适用**：骨架刚生成完，工作目录 = 新项目根。
+**前置**：进入本剧本前，已经用最终参数完成 `--dry-run`，向使用者展示参数、目标目录状态、开关和文件计划，并在确认后正式生成。
+这个生成确认只覆盖「写入骨架文件」；后面的 commit、push、建远程仓库、拉取配套 skill 仍按本剧本的确认点执行。
 **节奏**：默认**一气呵成**；允许在**大阶段之间**断开（生成 / 初始化 / 需求打磨 / 产品与设计），
 断开后靠本剧本 + 项目现场自检续跑，**不建跨会话状态文件**。
 
@@ -20,7 +22,7 @@
 |---|------|------|------|----------|--------|
 | ① | **入库基线** | AI | `git init` → 全量 `git add` → 跑四条守卫 → 首次提交 | 四条守卫**全绿**；`git log` 有一条提交 | 提交前确认 |
 | ② | **依赖就位** | AI | 后端 `mvn -B -ntp test`；前端 `npm install`（生成锁文件）后 `npm run typecheck` | 后端 3 个测试通过；前端 typecheck 无错；`package-lock.json` 已入库 | 提交前确认 |
-| ③ | **本地跑通** | AI + 用户 | 起数据库 → 配本地值（随机 JWT 密钥、端口核对）→ 起后端 → 起前端 | 后端健康端点 200；**前端页面能开且那行字来自后端** | — |
+| ③ | **本地跑通** | AI + 用户 | 选择 Docker MySQL 或专用外部 MySQL → 配本地值（随机 JWT 密钥、端口核对）→ 起后端 → 起前端 | 有可用 MySQL 时：后端健康端点 200；**前端页面能开且那行字来自后端**；没有数据库时：只记录基础门禁完成，联通项明确为受阻 | — |
 | ④ | **门禁复核** | AI | 四条守卫 + typecheck + `mvn test` 再跑一遍 | 全绿 | — |
 | ⑤ | **入库远程** | **用户拍板** | 问仓库名与公开/私有 → `gh repo create` → push → 盯 CI | **CI 首绿**（红不算完） | ⛔ 建仓与推送前确认 |
 | ⑥ | **完成衔接** | AI 提示 | 检查配套 skill → 缺了先问再拉 → 打总结 + 提示用户手动触发需求打磨 | 提示已给出；worklog 记下「等待触发」 | 拉取前确认；自然断点 |
@@ -54,22 +56,48 @@ CI 上用它做缓存 key，版本守卫也比它）。
 
 ### ③ 本地跑通
 
+先选一条数据库路径，不把 Docker 当成唯一前置：
+
+**路径 A：Docker 启动本机 MySQL（推荐）**
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d          # 只起数据库
 python -c "import secrets;print(secrets.token_hex(32))" # 生成 JWT 密钥，写进 .env（给 compose 用）
 cd backend && mvn -B -ntp spring-boot:run               # 起后端
+```
+
+**路径 B：使用专用本机或远程 MySQL**
+
+没有 Docker 但有可用 MySQL 时，先为本项目准备专用数据库和账号，再在启动后端的 shell 中显式覆盖连接配置：
+
+```bash
+export SPRING_DATASOURCE_URL='jdbc:mysql://127.0.0.1:3306/<数据库名>?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai'
+export SPRING_DATASOURCE_USERNAME='<开发账号>'
+export SPRING_DATASOURCE_PASSWORD='<开发密码>'
+export <前缀>_JWT_SECRET="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+cd backend && mvn -B -ntp spring-boot:run
+```
+
+Flyway 会对这个目标库执行迁移；不要把生产库当作本地开发库。`docker-compose.dev.yml` 的 `MYSQL_PORT`
+只改变容器端口映射，不会自动改变宿主机 Maven 使用的 JDBC URL。
+
+**路径 C：暂时没有任何 MySQL**
+
+仍可完成生成、四条守卫、后端纯单测和前端 `typecheck` / `build`，但必须把以下事项记为“未验证 / 受阻”：
+数据库迁移、后端启动、接口健康端点、前后端页面联通。不能用 H2、关闭 Flyway 或假造接口返回来把这段标成“本地跑通”。
+后续获得 Docker 或专用 MySQL 后，从路径 A/B 继续，并补做下面的真实联通判据。
+
+**有 MySQL 时的联通判据**
+
+```bash
+# 路径 A 已由 compose 提供数据库；路径 B 使用上面三个 SPRING_DATASOURCE_* 变量
 curl --noproxy '*' -fsS http://127.0.0.1:8080/v3/api-docs >/dev/null && echo "后端 200 ✓"
 cd frontend && npm run dev
 ```
 
-⚠️ `mvn spring-boot:run` **不读 `.env`**。宿主机直跑时没设 `<前缀>_JWT_SECRET` 是正常的：
-后端会打一条「正在使用 JWT 默认密钥」的警告并改用随机密钥（重启需重新登录），不影响跑通。
-想要固定密钥就在起后端的那个 shell 里 `export <前缀>_JWT_SECRET=...`。
+浏览器打开 `http://127.0.0.1:5173/`，**首页那行「后端返回：hello, world」是后端给的**——
+这一条同时证明代理、鉴权白名单、响应解包都通了。
 
-判据两条，都要真的看到：
-- 后端 `/v3/api-docs` 返回 200；
-- 浏览器打开 `http://127.0.0.1:5173/`，**首页那行「后端返回：hello, world」是后端给的**——
-  这一条同时证明代理、鉴权白名单、响应解包都通了。
 
 ### ④ 门禁复核
 
@@ -108,7 +136,7 @@ gh run watch --exit-status          # 盯到 CI 首绿；红了就修，别带�
 
 | 症状 | 处理 |
 |---|---|
-| Docker 起不来 / `docker ps` 连不上守护进程 | Docker Desktop 不会自启，**手动点开**再等约一分钟；它退出后旧容器仍在，别被存活的端口骗了 |
+| Docker 起不来 / `docker ps` 连不上守护进程 | 有 Docker 时手动点开 Docker Desktop；没有 Docker 但有专用 MySQL 时走路径 B；两者都没有则完成基础门禁并把数据库联通记为受阻，不能用旧容器存活端口冒充本次验证 |
 | 后端明明配了 8080，却报别的端口被占用 | 环境里注入了 `SERVER_PORT`（或 `SERVER__PORT`）之类的变量，顶掉了配置。起服务前 `unset SERVER__PORT SERVER_PORT` |
 | `*.sh` 报 `bad interpreter` | 文件成了 CRLF。`.gitattributes` 已强制 LF，编辑器可能改回去，提交前看 `git diff` 有没有整文件变动 |
 | npm 装不上 / 锁文件跨平台出问题 | 删掉 `package-lock.json` 在**目标平台**上重新 `npm install`，别手改锁文件 |
@@ -125,7 +153,8 @@ gh run watch --exit-status          # 盯到 CI 首绿；红了就修，别带�
 ```bash
 git log --oneline -5                 # 已提交到哪一步
 git status --porcelain               # 有没有未提交的改动
-docker ps --format '{{.Names}}'      # 数据库在不在跑
+docker ps --format '{{.Names}}'      # 若选 Docker 路径，数据库在不在跑
+# 若选外部 MySQL，改用 mysqladmin ping 或实际连接检查；没有数据库则保留受阻项
 bash scripts/check-doc-links.sh      # 文档守卫绿不绿
 ls docs/worklog/                     # 上一份工作台写到哪了
 ```

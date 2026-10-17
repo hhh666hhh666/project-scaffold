@@ -11,7 +11,8 @@ spring:
 
   datasource:
     # 默认值供本机开发用（mvn spring-boot:run 直连本机 3306）；
-    # 容器里由 compose 注入 SPRING_DATASOURCE_* 覆盖，指向 mysql 服务。
+    # 容器里由 compose 注入 SPRING_DATASOURCE_* 覆盖，宿主机外部 MySQL 也用这三个变量覆盖。
+    # 启动时 Flyway 会对这里指定的目标库执行 db/migration 下的迁移，勿指向生产库。
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/${DB_NAME}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:change-me}

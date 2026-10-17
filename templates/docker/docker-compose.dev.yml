@@ -1,4 +1,6 @@
 # 本机开发只起数据库；后端与前端在宿主机上直跑（`mvn spring-boot:run` / `npm run dev`）。
+# Docker 只是启动本机 MySQL 的一种方式；没有 Docker 时可使用专用外部 MySQL，见根 README。
+# `MYSQL_PORT` 只改变容器到宿主机的端口映射，不会自动修改宿主后端的 JDBC URL。
 # 理由：改代码不用重建镜像，断点与热更新都还在。
 services:
   mysql:

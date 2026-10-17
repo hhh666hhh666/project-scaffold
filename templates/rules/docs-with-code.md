@@ -24,7 +24,7 @@ alwaysApply: true
 | 导入导出格式 | `docs/design/` 下对应主题 |
 | 前端结构 / 路由 / 状态 | `docs/design/前端.md` |
 | 部署、compose、`scripts/` | `docs/operations/` |
-| 配置、密钥、`.env` | `docs/operations/configuration.md` |
+| 配置、密钥、`.env` | 根 `README.md` 的配置要点 + `backend/src/main/resources/application.yml` / `.env.example`（真实默认值以文件为准） |
 | 测试策略 | `docs/testing/` |
 | CI / 镜像构建 | `.github/workflows/` |
 | 领域词汇 | 根 `GLOSSARY.md` |

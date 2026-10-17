@@ -17,11 +17,12 @@
 - `docs:` —— 改文档**内容**（ADR、README、本目录）；
 - `chore:` —— 工具与工程杂项（.gitignore、换行、依赖版本）。
 
-## 提 PR 前本地要做什么
+## 本地验证与环境小坑
 
-1. 后端 `mvn -B -ntp test`；前端 `npm run typecheck`（`frontend/` 目录下）。
-2. 跑一遍守卫脚本（见 `.codebuddy/commands/wrap-up.md` 第 4 步）。
-3. 可选：在本机构建镜像做冒烟——但本机命中缓存会掩盖问题，真正的验证是 CI。
+- 基础门禁：后端 `mvn -B -ntp test`、前端 `npm run typecheck`；这些命令不需要 Docker。
+- 本地前后端联通：需要可访问的 MySQL，可用 `docker-compose.dev.yml` 启动本机库，或在后端启动 shell 中设置 `SPRING_DATASOURCE_*` 使用专用外部库。
+- 使用 `*IT` 的 Testcontainers 集成测试、镜像冒烟与发布流程仍需要容器；没有数据库时只能把联通项记为未验证，不要用 H2 或假响应替代。
+- 可选：在本机构建镜像做冒烟——但本机命中缓存会掩盖问题，真正的验证是 CI。
 
 ## CI 会拦什么
 
