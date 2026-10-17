@@ -32,6 +32,26 @@ VAR_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)\}")
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 PACKAGE_RE = re.compile(r"^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$")
+# 业务模块名直接当 Java 包段与目录名用：只许小写字母数字，挡住 ../、大写、连字符
+MODULE_RE = re.compile(r"^[a-z][a-z0-9]*$")
+
+# 能单独当包段的 Java 关键字 / 字面量（javac 会拒绝 com.example.class 这种包名）
+JAVA_KEYWORDS = frozenset("""
+    abstract assert boolean break byte case catch char class const continue default do
+    double else enum extends false final finally float for goto if implements import
+    instanceof int interface long native new null package private protected public return
+    short static strictfp super switch synchronized this throw throws transient true try
+    void volatile while _
+""".split())
+
+# 模板里「运行时自己定义」的全大写变量（shell 赋值 / for 变量、yml 与 .env 的键、Dockerfile ARG/ENV）。
+# 这些名字一旦与变量表撞名，生成时就会被静默替换成表里的值——生成前必须拦下。
+RUNTIME_SUFFIXES = (".sh", ".yml", ".yaml", ".example")
+RUNTIME_DEF_RE = re.compile(
+    r"^\s*(?:(?:export|local|readonly|declare)\s+|for\s+|(?:ARG|ENV)\s+|-\s+)?"
+    r"([A-Z][A-Z0-9_]*)(?:=|:\s|:$|\s+in\b)",
+    re.MULTILINE,
+)
 
 # 模板子目录 → 目标子目录（相对 --out）。None 表示该段直接落到根目录。
 # (源目录名, 目标目录, 需要的开关；None = 总是生成)
@@ -61,6 +81,9 @@ EMPTY_DIRS = [
     "docs/todo/archive",
     "docs/worklog",
 ]
+
+# 额外业务模块的空包骨架（与 example 模块的分层一致）
+MODULE_SUBDIRS = ("controller", "dto", "entity", "mapper", "service", "vo")
 
 SCRIPT_NAMES = {
     "LINK_CHECK_SCRIPT": "check-doc-links.sh",
@@ -110,8 +133,10 @@ def build_context(
     ctx["JWT_DEFAULT_SECRET"] = default_secret
     ctx["CONFIG_VERSION_ANNOTATION"] = "${" + app_prefix + ".version:dev}"
     ctx["CORS_ANNOTATION"] = "${" + app_prefix + ".cors.allowed-origins:}"
-    ctx["JWT_SECRET_ANNOTATION"] = "${" + env + "_JWT_SECRET}"
-    ctx["JWT_EXPIRE_ANNOTATION"] = "${" + env + "_JWT_EXPIRE_DAYS:7}"
+    # 注解读 yml 的配置键而不是环境变量本身：兜底默认值只写在 yml 一处，
+    # 没设环境变量时才能落到默认值（再由 JwtUtil 换成随机密钥），而不是启动即失败。
+    ctx["JWT_SECRET_ANNOTATION"] = "${" + app_prefix + ".jwt.secret}"
+    ctx["JWT_EXPIRE_ANNOTATION"] = "${" + app_prefix + ".jwt.expire-days:7}"
     ctx["JWT_SECRET_YAML"] = "${" + env + "_JWT_SECRET:" + default_secret + "}"
     ctx["APP_VERSION_YAML"] = "${" + env + "_VERSION:dev}"
     ctx["CORS_YAML"] = "${" + env + "_CORS_ALLOWED_ORIGINS:}"
@@ -133,6 +158,41 @@ def ask(prompt: str, default: str) -> str:
     return raw or default
 
 
+def valid_port(raw: str) -> int | None:
+    return int(raw) if raw.isdigit() and 1 <= int(raw) <= 65535 else None
+
+
+def ask_port(prompt: str, default: str) -> int:
+    while True:
+        port = valid_port(ask(prompt, default))
+        if port is not None:
+            return port
+        print("    ⚠️ 端口必须是 1-65535 的整数")
+
+
+def parse_modules(raw: str) -> tuple[list[str], list[str]]:
+    """拆分 --modules：返回 (去重后的合法模块, 非法项)。example 总会生成，传了也忽略。"""
+    good: list[str] = []
+    bad: list[str] = []
+    for m in (x.strip() for x in (raw or "").split(",")):
+        if not m or m == "example" or m in good:
+            continue
+        if MODULE_RE.match(m) and m not in JAVA_KEYWORDS:
+            good.append(m)
+        else:
+            bad.append(m)
+    return good, bad
+
+
+def package_error(package: str) -> str | None:
+    if not PACKAGE_RE.match(package):
+        return "形如 com.example.myapp"
+    kw = [seg for seg in package.split(".") if seg in JAVA_KEYWORDS]
+    if kw:
+        return f"包段不能是 Java 关键字：{', '.join(kw)}"
+    return None
+
+
 def ask_bool(prompt: str, default: bool) -> bool:
     hint = "y/N" if not default else "Y/n"
     raw = input(f"{prompt} ({hint}): ").strip().lower()
@@ -151,15 +211,21 @@ def interactive() -> argparse.Namespace:
     default_pkg = "com.example." + re.sub(r"[^a-z0-9]", "", name.lower())
     while True:
         package = ask("Java 包名", default_pkg)
-        if PACKAGE_RE.match(package):
+        err = package_error(package)
+        if not err:
             break
-        print("    ⚠️ 形如 com.example.myapp")
+        print(f"    ⚠️ {err}")
     out = ask("输出目录", f"./{name}")
     version = ask("初始版本", "0.1.0")
-    backend_port = ask("后端端口", "8080")
-    frontend_port = ask("前端 dev 端口", "5173")
+    backend_port = ask_port("后端端口", "8080")
+    frontend_port = ask_port("前端 dev 端口", "5173")
     db_name = ask("数据库名", re.sub(r"[^a-z0-9_]", "_", name.lower()))
-    modules = ask("额外业务模块（逗号分隔，可留空；example 样例模块总会生成）", "")
+    while True:
+        modules = ask("额外业务模块（逗号分隔，可留空；example 样例模块总会生成）", "")
+        _, bad = parse_modules(modules)
+        if not bad:
+            break
+        print(f"    ⚠️ 模块名只能是小写字母开头的小写字母 / 数字，且不能是 Java 关键字：{', '.join(bad)}")
     print()
     with_deploy = ask_bool("生成部署章节（release.yml / compose.prod / 服务器脚本）", False)
     with_ops = ask_bool("生成运维章节（docs/operations/内存策略.md）", False)
@@ -167,7 +233,7 @@ def interactive() -> argparse.Namespace:
 
     return argparse.Namespace(
         name=name, package=package, out=out, version=version,
-        backend_port=int(backend_port), frontend_port=int(frontend_port),
+        backend_port=backend_port, frontend_port=frontend_port,
         web_port=8081, db_name=db_name, modules=modules,
         with_deploy=with_deploy, with_ops=with_ops, with_testing=with_testing,
         force=False, dry_run=False,
@@ -182,39 +248,53 @@ def write_text(path: Path, content: str) -> None:
         fh.write(content)
 
 
-def make_module_skeleton(out: Path, ctx: dict[str, str], modules: list[str]) -> list[str]:
-    """额外业务模块：只建空包骨架（含 .gitkeep），不预置代码。"""
-    created: list[str] = []
-    base = out / "backend" / "src" / "main" / "java" / ctx["PACKAGE_PATH"] / "module"
+def rel_posix(path: Path, out: Path) -> str:
+    return path.relative_to(out).as_posix()
+
+
+def plan_keepfiles(out: Path, ctx: dict[str, str], modules: list[str],
+                   planned_dsts: list[Path]) -> list[Path]:
+    """算出要补 .gitkeep 的位置：恒定目录 + 额外模块的空包骨架。
+
+    只算不写，好让 dry-run 与真实生成打印同一份清单。
+    已经会有模板文件落进去、或者磁盘上本来就有内容的目录，不补。
+    """
+    dirs = [out / rel for rel in EMPTY_DIRS]
+    main_base = out / "backend" / "src" / "main" / "java" / ctx["PACKAGE_PATH"] / "module"
     test_base = out / "backend" / "src" / "test" / "java" / ctx["PACKAGE_PATH"] / "module"
     for mod in modules:
-        for sub in ("controller", "dto", "entity", "mapper", "service", "vo"):
-            d = base / mod / sub
-            d.mkdir(parents=True, exist_ok=True)
-            keep = d / ".gitkeep"
-            if not keep.exists():
-                write_text(keep, "")
-                created.append(str(d.relative_to(out)).replace("\\", "/") + "/.gitkeep")
-        t = test_base / mod / "service"
-        t.mkdir(parents=True, exist_ok=True)
-        keep = t / ".gitkeep"
-        if not keep.exists():
-            write_text(keep, "")
-            created.append(str(t.relative_to(out)).replace("\\", "/") + "/.gitkeep")
-    return created
+        dirs += [main_base / mod / sub for sub in MODULE_SUBDIRS]
+        dirs.append(test_base / mod / "service")
+
+    keeps: list[Path] = []
+    for d in dirs:
+        if any(dst.is_relative_to(d) for dst in planned_dsts):
+            continue
+        if d.is_dir() and any(d.iterdir()):
+            continue
+        keeps.append(d / ".gitkeep")
+    return keeps
 
 
-def ensure_empty_dirs(out: Path) -> list[str]:
-    created: list[str] = []
-    for rel in EMPTY_DIRS:
-        d = out / rel
-        d.mkdir(parents=True, exist_ok=True)
-        if not any(d.iterdir()):
-            keep = d / ".gitkeep"
-            if not keep.exists():
-                write_text(keep, "")
-                created.append(rel + "/.gitkeep")
-    return created
+def find_collisions(ctx: dict[str, str]) -> list[str]:
+    """扫全部模板（不论开关），找「运行时自己定义、却与变量表同名」的全大写变量。"""
+    hits: list[str] = []
+    for path in sorted(TEMPLATES.rglob("*")):
+        if not path.is_file():
+            continue
+        # 按渲染后的文件名判断类型：守卫脚本在模板里叫 ${LINK_CHECK_SCRIPT}，渲染后才有 .sh
+        name = render(path.name, ctx)
+        if not (name.endswith(RUNTIME_SUFFIXES) or name == "Dockerfile"):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for m in RUNTIME_DEF_RE.finditer(text):
+            if m.group(1) in ctx:
+                line = text.count("\n", 0, m.start(1)) + 1
+                hits.append(f"{path.relative_to(TEMPLATES).as_posix()}:{line}  {m.group(1)}")
+    return hits
 
 
 def generate(args: argparse.Namespace) -> int:
@@ -223,7 +303,16 @@ def generate(args: argparse.Namespace) -> int:
         args.backend_port, args.frontend_port, args.web_port, args.db_name,
     )
     out = Path(args.out).resolve()
-    extra_modules = [m.strip() for m in (args.modules or "").split(",") if m.strip()]
+    extra_modules, _ = parse_modules(args.modules)   # main() 已拦下非法项
+
+    # 模板自检：运行时变量与变量表撞名 = 模板 bug，生成出来的东西会被静默改坏
+    collisions = find_collisions(ctx)
+    if collisions:
+        print("==> 模板自检失败：以下运行时变量与变量表同名，生成时会被误替换：", file=sys.stderr)
+        for hit in collisions:
+            print("    " + hit, file=sys.stderr)
+        print("    改掉模板里的变量名（或变量表里的名字），见 references/VARIABLES.md。", file=sys.stderr)
+        return 2
 
     flags = {"with_deploy": args.with_deploy, "with_ops": args.with_ops, "with_testing": args.with_testing}
 
@@ -242,22 +331,22 @@ def generate(args: argparse.Namespace) -> int:
             rel = render(path.relative_to(src_root).as_posix(), ctx)
             planned.append((path, dst_root / rel))
 
-    # 幂等保护
-    existing = [dst for _, dst in planned if dst.exists()]
+    keeps = plan_keepfiles(out, ctx, extra_modules, [dst for _, dst in planned])
+
+    # 幂等保护：目录非空就拒绝（模板文件已存在必然意味着目录非空，所以一条判断就够）
     if out.exists() and any(out.iterdir()) and not args.force and not args.dry_run:
-        print(f"==> 目标目录非空：{out}\n    加 --force 才会覆盖模板产物（不会删除你的其他文件）。", file=sys.stderr)
-        return 2
-    if existing and not args.force and not args.dry_run:
-        print(f"==> 有 {len(existing)} 个文件已存在（如 {existing[0]}），加 --force 覆盖。", file=sys.stderr)
+        existing = sum(1 for _, dst in planned if dst.exists())
+        print(f"==> 目标目录非空：{out}（其中 {existing} 个模板产物已存在）\n"
+              "    加 --force 才会覆盖模板产物（不会删除你的其他文件）。", file=sys.stderr)
         return 2
 
     print(f"==> 项目：{ctx['PROJECT_NAME']}  包：{ctx['PACKAGE']}  输出：{out}")
     print(f"==> 可选章节：deploy={args.with_deploy} ops={args.with_ops} testing={args.with_testing}")
     if args.dry_run:
         print("\n==> dry-run：以下文件将被创建（不落盘）")
-        for _, dst in planned:
-            print("    " + str(dst.resolve().relative_to(out)).replace("\\", "/"))
-        print(f"\n    共 {len(planned)} 个文件")
+        for dst in [dst for _, dst in planned] + keeps:
+            print("    " + rel_posix(dst, out))
+        print(f"\n    共 {len(planned) + len(keeps)} 个文件 / 占位")
         return 0
 
     written: list[str] = []
@@ -268,11 +357,10 @@ def generate(args: argparse.Namespace) -> int:
             print(f"    ⚠️ 跳过非文本文件：{src}", file=sys.stderr)
             continue
         write_text(dst, render(content, ctx))
-        written.append(str(dst.resolve().relative_to(out)).replace("\\", "/"))
-
-    written += ensure_empty_dirs(out)
-    if extra_modules:
-        written += make_module_skeleton(out, ctx, extra_modules)
+        written.append(rel_posix(dst, out))
+    for keep in keeps:
+        write_text(keep, "")
+        written.append(rel_posix(keep, out))
 
     print(f"\n==> 已生成 {len(written)} 个文件 / 占位")
     if extra_modules:
@@ -324,8 +412,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--name 必须是 kebab-case：小写字母 / 数字 / 连字符，且不能以数字或连字符开头")
     if args.package is None:
         args.package = "com.example." + re.sub(r"[^a-z0-9]", "", args.name.lower())
-    if not PACKAGE_RE.match(args.package):
-        parser.error("--package 形如 com.example.myapp")
+    err = package_error(args.package)
+    if err:
+        parser.error(f"--package {err}")
+    for opt in ("backend_port", "frontend_port", "web_port"):
+        if valid_port(str(getattr(args, opt))) is None:
+            parser.error(f"--{opt.replace('_', '-')} 必须是 1-65535 的整数")
+    _, bad = parse_modules(args.modules)
+    if bad:
+        parser.error(f"--modules 里有非法模块名（只能小写字母开头的小写字母 / 数字，且不能是 Java 关键字）：{', '.join(bad)}")
     if args.out is None:
         args.out = f"./{args.name}"
     if not args.db_name:

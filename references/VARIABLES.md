@@ -32,8 +32,8 @@ VAR_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)\}")
 | `APP_CLASS` | Java 类名前缀（Pascal） | 由项目名转 Pascal | `DemoApp` |
 | `APP_PREFIX` | Spring 配置前缀（小写字母数字） | 项目名去掉非字母数字 | `demoapp` |
 | `APP_ENV_PREFIX` | 环境变量前缀（大写） | `APP_PREFIX.upper()` | `DEMOAPP` |
-| `PACKAGE` | Java 包名 | `--package`，默认 `com.example.<APP_PREFIX>` | `com.example.demo` |
-| `PACKAGE_PATH` | 包路径 | `PACKAGE.replace('.', '/')` | `com/example/demo` |
+| `PACKAGE` | Java 包名 | `--package`，默认 `com.example.<APP_PREFIX>` | `com.example.demoapp` |
+| `PACKAGE_PATH` | 包路径 | `PACKAGE.replace('.', '/')` | `com/example/demoapp` |
 | `VERSION` | 初始版本 | `--version`，默认 `0.1.0` | `0.1.0` |
 | `BACKEND_PORT` | 后端端口 | `--backend-port`，默认 `8080` | `8080` |
 | `FRONTEND_PORT` | 前端 dev 端口 | `--frontend-port`，默认 `5173` | `5173` |
@@ -51,8 +51,8 @@ VAR_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*)\}")
 | `JWT_DEFAULT_SECRET` | `demoapp-default-jwt-secret-please-replace-in-production-0123456789abcdef` |
 | `CONFIG_VERSION_ANNOTATION` | `${demoapp.version:dev}` |
 | `CORS_ANNOTATION` | `${demoapp.cors.allowed-origins:}` |
-| `JWT_SECRET_ANNOTATION` | `${DEMOAPP_JWT_SECRET}` |
-| `JWT_EXPIRE_ANNOTATION` | `${DEMOAPP_JWT_EXPIRE_DAYS:7}` |
+| `JWT_SECRET_ANNOTATION` | `${demoapp.jwt.secret}` |
+| `JWT_EXPIRE_ANNOTATION` | `${demoapp.jwt.expire-days:7}` |
 | `JWT_SECRET_YAML` | `${DEMOAPP_JWT_SECRET:demoapp-default-…}` |
 | `APP_VERSION_YAML` | `${DEMOAPP_VERSION:dev}` |
 | `CORS_YAML` | `${DEMOAPP_CORS_ALLOWED_ORIGINS:}` |
@@ -74,7 +74,14 @@ templates/scripts/${LINK_CHECK_SCRIPT}
 ## 校验规则
 
 - 项目名必须 `^[a-z][a-z0-9-]*$`（它同时是 npm 包名、compose 项目名、容器名前缀）。
-- 包名必须 `^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`。
+- 包名必须 `^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`，且任何一段都不能是 Java 关键字（如 `class`、`int`）。
+- 端口必须是 1-65535 的整数。
+- `--modules` 里每个名字必须 `^[a-z][a-z0-9]*$` 且不是 Java 关键字（它直接当包段与目录名）；
+  重复项去重，`example` 总会生成，传了也忽略。
+
+**模板自检**：生成前会扫一遍全部模板（不论开关），`.sh` / `.yml` / `.yaml` / `.example` / `Dockerfile`
+里**运行时自己定义**的全大写变量（shell 赋值、`for` 变量、yml / `.env` 的键、`ARG` / `ENV`）若与变量表同名，
+直接报错退出——否则它会在生成时被静默替换成表里的值。往变量表加新名字时如果撞上，改其中一边的名字。
 
 ## 目录映射
 

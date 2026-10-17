@@ -72,7 +72,7 @@ python scripts/scaffold.py --name my-app \
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `--name` | （必填） | 项目名，kebab-case，同时是 npm 包名 / compose 项目名 / 容器名前缀 |
-| `--package` | `com.example.<name>` | Java 包名 |
+| `--package` | `com.example.<name 去掉连字符>` | Java 包名（如 `demo-app` → `com.example.demoapp`） |
 | `--out` | `./<name>` | 输出目录 |
 | `--version` | `0.1.0` | 初始版本号 |
 | `--backend-port` / `--frontend-port` / `--web-port` | `8080` / `5173` / `8081` | 端口 |

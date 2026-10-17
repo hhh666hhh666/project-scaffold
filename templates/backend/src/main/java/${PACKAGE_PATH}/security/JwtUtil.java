@@ -26,6 +26,8 @@ public class JwtUtil {
     private final SecretKey key;
     private final long expireMillis;
 
+    // 读 application.yml 的配置键，别直接读环境变量：兜底默认值只在 yml 里，
+    // 直接读环境变量会让「没设密钥」变成启动失败，下面的随机密钥兜底也就永远走不到。
     public JwtUtil(@Value("${JWT_SECRET_ANNOTATION}") String secret,
                    @Value("${JWT_EXPIRE_ANNOTATION}") long expireDays) {
         this.key = Keys.hmacShaKeyFor(resolveSecret(secret).getBytes(StandardCharsets.UTF_8));

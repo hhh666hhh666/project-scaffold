@@ -52,11 +52,15 @@ CI 上用它做缓存 key，版本守卫也比它）。
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d          # 只起数据库
-python -c "import secrets;print(secrets.token_hex(32))" # 生成 JWT 密钥，写进 .env
+python -c "import secrets;print(secrets.token_hex(32))" # 生成 JWT 密钥，写进 .env（给 compose 用）
 cd backend && mvn -B -ntp spring-boot:run               # 起后端
 curl --noproxy '*' -fsS http://127.0.0.1:8080/v3/api-docs >/dev/null && echo "后端 200 ✓"
 cd frontend && npm run dev
 ```
+
+⚠️ `mvn spring-boot:run` **不读 `.env`**。宿主机直跑时没设 `<前缀>_JWT_SECRET` 是正常的：
+后端会打一条「正在使用 JWT 默认密钥」的警告并改用随机密钥（重启需重新登录），不影响跑通。
+想要固定密钥就在起后端的那个 shell 里 `export <前缀>_JWT_SECRET=...`。
 
 判据两条，都要真的看到：
 - 后端 `/v3/api-docs` 返回 200；
