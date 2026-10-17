@@ -114,3 +114,6 @@ templates/scripts/${LINK_CHECK_SCRIPT}
 `docs/operations`、`docs/requirements`、`docs/testing`、`docs/todo/archive`、`docs/worklog`。
 
 `.github/dependabot.yml` 随 `root/` 一起生成，不需要开关；它是固定的升级提案配置，不含变量。
+
+`.scaffold.json` 由生成器直接构造（不经过模板渲染），记录生成参数与脚手架来源。
+它与 `VERSION` 是两件事：`VERSION` 是新项目的初始版本，来源提交描述的是脚手架自身。

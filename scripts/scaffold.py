@@ -19,12 +19,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TEMPLATES = HERE.parent / "templates"
+ROOT = HERE.parent
+TEMPLATES = ROOT / "templates"
+
+# 生成记录：默认写入项目根，建议随项目入库；记录的是「最近一次完整生成」。
+SCAFFOLD_RECORD_NAME = ".scaffold.json"
+SCAFFOLD_RECORD_SCHEMA = 1
+GENERATOR_NAME = "project-scaffold"
+# dirty 只看生成器自身的输入，不因 README / 测试 / 业务文件变化而误报。
+SOURCE_PATHS = ("scripts/scaffold.py", "templates")
 
 # 只有「全大写 + 下划线」的 ${XXX} 会被替换。
 # 这样 Spring 的 ${myapp.jwt.secret}、bash 的 ${1:-}、Maven 的 ${java.version}
@@ -150,6 +161,126 @@ def build_context(
 
 def render(text: str, ctx: dict[str, str]) -> str:
     return VAR_RE.sub(lambda m: ctx.get(m.group(1), m.group(0)), text)
+
+
+# ────────────────────────────── 生成记录 ──────────────────────────────
+
+def _git_run(args: list[str], root: Path, timeout: int = 5) -> str | None:
+    """只读查询；Git 不存在、超时或失败都返回 None，不影响正常生成。"""
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=timeout,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def detect_generator_source(root: Path = ROOT) -> dict:
+    """识别脚手架自身的提交；只认「仓库根恰好是脚手架根」，避免误记外层仓库。"""
+    unknown = {"commit": None, "dirty": None, "status": "unknown"}
+    top = _git_run(["rev-parse", "--show-toplevel"], root)
+    if not top:
+        return unknown
+    try:
+        if Path(top).resolve() != root.resolve():
+            return unknown
+    except OSError:
+        return unknown
+    commit = _git_run(["rev-parse", "HEAD"], root)
+    if not commit or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        return unknown
+    # --no-optional-locks：不刷新索引，尽量保持只读。
+    status = _git_run(
+        ["--no-optional-locks", "status", "--porcelain", "--untracked-files=all", "--", *SOURCE_PATHS],
+        root,
+    )
+    return {"commit": commit, "dirty": None if status is None else bool(status), "status": "git"}
+
+
+def source_summary(source: dict) -> str:
+    if source.get("status") != "git":
+        return "未知（不是独立的脚手架 Git 仓库，或查询失败）"
+    text = str(source.get("commit") or "")[:7]
+    if source.get("dirty") is True:
+        return text + "（生成器或模板有本地改动）"
+    if source.get("dirty") is None:
+        return text + "（本地改动状态未知）"
+    return text + "（生成器与模板无本地改动）"
+
+
+def build_scaffold_record(ctx: dict[str, str], modules: list[str],
+                          args: argparse.Namespace, source: dict | None = None) -> dict:
+    """字段白名单：只存项目参数与脚手架来源，不存路径、时间、环境或凭据。"""
+    return {
+        "schema_version": SCAFFOLD_RECORD_SCHEMA,
+        "generator": {
+            "name": GENERATOR_NAME,
+            "source": dict(source if source is not None else detect_generator_source()),
+        },
+        "project": {
+            "name": ctx["PROJECT_NAME"],
+            "package": ctx["PACKAGE"],
+            "initial_version": ctx["VERSION"],
+            "database": ctx["DB_NAME"],
+            "ports": {
+                "backend": int(ctx["BACKEND_PORT"]),
+                "frontend": int(ctx["FRONTEND_PORT"]),
+                "web": int(ctx["WEB_PORT"]),
+            },
+            "modules": list(modules),
+            "switches": {
+                "deploy": bool(args.with_deploy),
+                "ops": bool(args.with_ops),
+                "testing": bool(args.with_testing),
+            },
+        },
+    }
+
+
+def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"重复的 JSON 键：{key}")
+        result[key] = value
+    return result
+
+
+def existing_record_problem(path: Path) -> str | None:
+    """已有记录必须是本生成器能理解的格式；否则拒绝覆盖，哪怕带 --force。"""
+    if path.is_symlink():
+        return f"{path} 是符号链接，拒绝覆盖"
+    if not path.exists():
+        return None
+    if not path.is_file():
+        return f"{path} 不是普通文件，拒绝覆盖"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_no_duplicate_keys)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        return f"{path} 无法解析（{exc}）；请先备份并人工处理"
+    if not isinstance(data, dict) or data.get("schema_version") != SCAFFOLD_RECORD_SCHEMA:
+        return f"{path} 不是受支持的脚手架记录（schema_version 需为 {SCAFFOLD_RECORD_SCHEMA}）"
+    generator = data.get("generator")
+    if not isinstance(generator, dict) or generator.get("name") != GENERATOR_NAME:
+        return f"{path} 缺少 {GENERATOR_NAME} 标识，拒绝覆盖"
+    return None
+
+
+def write_scaffold_record(path: Path, record: dict) -> None:
+    """先写同目录临时文件，再原子替换，失败不破坏已有记录。"""
+    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    os.close(fd)
+    tmp = Path(name)
+    try:
+        write_text(tmp, json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+        os.chmod(tmp, 0o644)   # mkstemp 默认 0600；记录是项目文件，按普通文本文件发布
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
 
 
 # ────────────────────────────── 交互问答 ──────────────────────────────
@@ -323,16 +454,31 @@ def generate(args: argparse.Namespace) -> int:
             continue
         src_root = TEMPLATES / src_name
         if not src_root.is_dir():
-            print(f"    ⚠️ 模板目录缺失：{src_root}", file=sys.stderr)
-            continue
+            print(f"==> 模板目录缺失：{src_root}；本次生成未开始", file=sys.stderr)
+            return 2
         dst_root = out if target_name == "." else out / target_name
         for path in sorted(src_root.rglob("*")):
             if path.is_dir():
                 continue
+            # 写入前先验一遍编码：中途因坏模板停下会留下半成品，不如提前失败。
+            try:
+                path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                print(f"==> 模板不是 UTF-8 文本：{path}；本次生成未开始", file=sys.stderr)
+                return 2
             rel = render(path.relative_to(src_root).as_posix(), ctx)
             planned.append((path, dst_root / rel))
 
     keeps = plan_keepfiles(out, ctx, extra_modules, [dst for _, dst in planned])
+
+    record_path = out / SCAFFOLD_RECORD_NAME
+    if any(dst == record_path for _, dst in planned):
+        print(f"==> 模板产物与生成记录路径冲突：{SCAFFOLD_RECORD_NAME}", file=sys.stderr)
+        return 2
+    record_error = existing_record_problem(record_path)
+    if record_error:
+        print(f"==> 已有生成记录不可用：{record_error}", file=sys.stderr)
+        return 2
 
     # 幂等保护：目录非空就拒绝（模板文件已存在必然意味着目录非空，所以一条判断就够）
     if out.exists() and not out.is_dir():
@@ -355,8 +501,13 @@ def generate(args: argparse.Namespace) -> int:
         existing = 0
         target_code, target_state = "empty", "空目录（将写入）"
 
+    source = detect_generator_source()
+    record = build_scaffold_record(ctx, extra_modules, args, source)
+
     if args.dry_run and args.json:
-        files = [rel_posix(dst, out) for _, dst in planned] + [rel_posix(keep, out) for keep in keeps]
+        files = ([rel_posix(dst, out) for _, dst in planned]
+                 + [rel_posix(keep, out) for keep in keeps]
+                 + [SCAFFOLD_RECORD_NAME])
         plan = {
             "project": ctx["PROJECT_NAME"],
             "package": ctx["PACKAGE"],
@@ -384,6 +535,10 @@ def generate(args: argparse.Namespace) -> int:
             },
             "file_count": len(files),
             "files": files,
+            "scaffold_record": {
+                "path": SCAFFOLD_RECORD_NAME,
+                "content": record,
+            },
         }
         # 机器可读输出固定用 UTF-8：Windows 上重定向到文件时默认走本地编码（GBK），
         # 中文路径会让下游按 UTF-8 解析失败。StringIO 等无 reconfigure 的流跳过即可。
@@ -400,25 +555,30 @@ def generate(args: argparse.Namespace) -> int:
     print(f"==> 额外模块：{', '.join(extra_modules) if extra_modules else '无'}")
     print(f"==> 可选章节：deploy={args.with_deploy} ops={args.with_ops} testing={args.with_testing}")
     print(f"==> 目标状态：{target_state}  force={args.force}")
+    print(f"==> 脚手架来源：{source_summary(source)}")
     if args.dry_run:
         print("\n==> dry-run：以下文件将被创建或覆盖（不落盘）")
-        for dst in [dst for _, dst in planned] + keeps:
+        for dst in [dst for _, dst in planned] + keeps + [record_path]:
             print("    " + rel_posix(dst, out))
-        print(f"\n    共 {len(planned) + len(keeps)} 个文件 / 占位")
+        print(f"\n    共 {len(planned) + len(keeps) + 1} 个文件 / 占位")
         return 0
 
     written: list[str] = []
-    for src, dst in planned:
-        try:
+    try:
+        for src, dst in planned:
             content = src.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            print(f"    ⚠️ 跳过非文本文件：{src}", file=sys.stderr)
-            continue
-        write_text(dst, render(content, ctx))
-        written.append(rel_posix(dst, out))
-    for keep in keeps:
-        write_text(keep, "")
-        written.append(rel_posix(keep, out))
+            write_text(dst, render(content, ctx))
+            written.append(rel_posix(dst, out))
+        for keep in keeps:
+            write_text(keep, "")
+            written.append(rel_posix(keep, out))
+        # 记录最后发布：中途失败时，已有的旧记录不会被提前改掉。
+        write_scaffold_record(record_path, record)
+        written.append(SCAFFOLD_RECORD_NAME)
+    except OSError as exc:
+        print(f"\n==> 写入失败：{exc}", file=sys.stderr)
+        print("    本次生成未完成；可能留下部分文件，已有 .scaffold.json 不会被更新。", file=sys.stderr)
+        return 2
 
     print(f"\n==> 已生成 {len(written)} 个文件 / 占位")
     if extra_modules:

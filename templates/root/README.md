@@ -71,6 +71,12 @@ cd backend && mvn -B -ntp spring-boot:run
 - JWT：正式环境必须配置随机密钥；本机未配置时会用启动时随机密钥，重启后 token 失效。固定开发密钥需在启动后端的 shell 中设置。
 - `.env.example` 入库，`.env` 不入库；Compose 会读取 `.env`，Maven 直跑不会自动读取它。配置的真实默认值以 `backend/src/main/resources/application.yml` 与 `.env.example` 为准。
 
+## 项目来源记录
+
+根目录的 `.scaffold.json` 记录最近一次完整生成使用的脚手架提交与参数，建议随项目入库。
+它只用于追溯「从哪版骨架、按哪些选项开始」，**不是当前配置的真相源，也不是升级依据**；
+项目现在的行为以代码、配置文件和运行现场为准。`--force` 重新生成不会删除旧文件，所以它也不是目录现状清单。
+
 ## CI 与部署
 
 - CI（`.github/workflows/ci.yml`）：类型检查与构建、后端单测、文档守卫；这些基础门禁不要求本机 Docker。

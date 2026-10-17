@@ -16,6 +16,7 @@
 | [../PRODUCT.md](../PRODUCT.md) | 产品真相：受众 / 用途 / 定位 / 语气 / 约束 | 判断「某个设计对不对」的人 | 本文件（由 impeccable 生成） |
 | [../DESIGN.md](../DESIGN.md) | 视觉系统的**可读快照**（色板 / 排版 / 材质口径） | 改前端视觉的人 | **从 `frontend/src/styles/tokens.css` 派生**；过时了重新生成 |
 | [../CHANGELOG.md](../CHANGELOG.md) | 版本变更记录 | 所有人 | `git tag` |
+| [../.scaffold.json](../.scaffold.json) | 脚手架生成记录：来源提交、生成器是否有本地改动、本次参数 | 追溯项目起点的人 / AI | 本文件（最近一次完整生成的结果，不是当前配置） |
 | [../AGENTS.md](../AGENTS.md) | **给 AI 的规矩**（跨工具摘要，只做路由） | AI / 未来的自己 | `.codebuddy/rules/` |
 | [../CLAUDE.md](../CLAUDE.md) | Claude Code 的入口：只导入 `AGENTS.md` 与四条规则，不写内容 | Claude Code | `AGENTS.md` + `.codebuddy/rules/` |
 | [../.codebuddy/commands/wrap-up.md](../.codebuddy/commands/wrap-up.md) | 收尾自检：把未决事项落 `docs/todo/`、补文档与引用、跑守卫脚本 | AI / 收尾时 | 本文件 |

@@ -38,9 +38,10 @@ python <skill>/scripts/scaffold.py --name my-app \
     --package com.example.myapp --out E:/code/my-app
 ```
 
-先把 dry-run 的参数、目标目录状态、开关和文件清单展示给使用者，确认后才执行第二条；
+先把 dry-run 的参数、目标目录状态、开关、脚手架来源与文件清单展示给使用者，确认后才执行第二条；
 任何参数变化（尤其是 `--out`、模块、可选章节或 `--force`）都要重新预览。dry-run 只预览文件计划，
-不代表数据库、后端或前端已经跑通。
+不代表数据库、后端或前端已经跑通。正式生成会在项目根写 `.scaffold.json`（来源 + 参数），
+dry-run 会一并展示；它只记录「最近一次完整生成」，不是当前配置的真相源，也不是升级依据。
 需要把预览交给程序稳定解析时，给同一条 dry-run 命令加 `--json`（只能与 `--dry-run` 一起用）；
 JSON 只是预览，正式生成仍用同一组参数并先经使用者确认。
 
@@ -100,7 +101,8 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 
 默认**一气呵成**；允许在大阶段之间断开（生成 / 初始化 / 需求打磨 / 产品与设计）。
 续跑靠剧本 + 项目现场自检（`git log` / 所选数据库的连通状态 / 四条守卫 / 已有文档），**不建跨会话的任务进度文件**；
-配套 skill 的 `.fetched.json` 是安装来源记录，不是进度状态，不受这条限制。
+配套 skill 的 `.fetched.json` 是安装来源记录，生成项目的 `.scaffold.json` 是生成来源与参数记录，
+两者都不是进度状态，不受这条限制。
 
 ---
 
@@ -116,6 +118,8 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 - **色值不预设**：`tokens.css` 给的是中性灰阶 + 一个标 TODO 的主色，那是新项目自己的产品身份。
 - **依赖升级只提案**：生成项目自带 `.github/dependabot.yml`（Maven / npm / GitHub Actions，每周一次），
   不自动合并，也不会触发部署；基础镜像与 MySQL 镜像不在覆盖范围。
+- **`.scaffold.json` 是生成记录，不是现状清单**：它只说最近一次完整生成用了哪版骨架和哪些参数；
+  `--force` 不改写旧文件，也不代表目录里没有旧可选章节。别拿它当自动升级依据或覆盖业务代码的理由。
 - 生成后建议立刻自检一次：`grep -rnE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' <out>/`（除占位模板的示例日期外不该有别的）。
 
 ---
@@ -128,6 +132,7 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 | `scripts/fetch_skills.py` | 配套 skill 按固定基线安装（本地没有才拉、不覆盖、`--check` 只查不拉、`--outdated` 只报告） |
 | `references/SKILL-SOURCES.json` | 配套 skill 的固定提交与监测分支 |
 | `references/SKILL-FETCHING.md` | 固定基线、来源记录与过期检查的完整规则 |
+| `references/SCAFFOLD-METADATA.md` | 生成记录 `.scaffold.json` 的字段、来源识别与边界 |
 | `references/VARIABLES.md` | 变量表、占位符语法（只有全大写会被替换）、目录映射 |
 | `references/DOC-SYSTEM.md` | 文档体系搬了什么、改成什么样、地图与树为什么成对 |
 | `references/TECH-STACK.md` | 后端 / 前端 / Docker / CI 的取舍，以及**不搬**的业务件 |

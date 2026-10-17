@@ -141,6 +141,7 @@ class ScaffoldGenerationTest(unittest.TestCase):
             self.assertIn("backend/src/main/java/com/example/demoapp/DemoAppApplication.java", actual)
             self.assertIn("frontend/package.json", actual)
             self.assertIn("scripts/check-doc-links.sh", actual)
+            self.assertIn(".scaffold.json", actual)
 
     def test_all_optional_switch_combinations_have_expected_representatives(self) -> None:
         for deploy, ops, testing in itertools.product((False, True), repeat=3):
@@ -285,6 +286,238 @@ class DependabotTemplateTest(unittest.TestCase):
                     rendered = config.read_text(encoding="utf-8")
                     self.assertEqual(self.load(rendered), self.load(self.TEMPLATE.read_text(encoding="utf-8")))
                     self.assertNotIn("${", rendered)
+
+
+FIXED_SOURCE = {"commit": "a" * 40, "dirty": False, "status": "git"}
+
+
+class ScaffoldRecordTest(unittest.TestCase):
+    def generate(self, out: Path, **overrides: object) -> int:
+        with mock.patch.object(scaffold, "detect_generator_source", return_value=dict(FIXED_SOURCE)):
+            return scaffold.generate(ScaffoldGenerationTest.args(out, **overrides))
+
+    def read(self, out: Path) -> dict:
+        return json.loads((out / ".scaffold.json").read_text(encoding="utf-8"))
+
+    def test_record_has_parsed_values_and_no_private_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            self.assertEqual(
+                self.generate(
+                    out,
+                    name="reading-room", package="org.example.readingroom",
+                    version="1.2.0", backend_port=19080, frontend_port=16173,
+                    web_port=19081, db_name="reading_room",
+                    modules="catalog,example,catalog", with_testing=True,
+                ),
+                0,
+            )
+            text = (out / ".scaffold.json").read_text(encoding="utf-8")
+            raw = (out / ".scaffold.json").read_bytes()
+            record = self.read(out)
+
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(record["generator"]["name"], "project-scaffold")
+        self.assertEqual(record["generator"]["source"], FIXED_SOURCE)
+        project = record["project"]
+        self.assertEqual(project["name"], "reading-room")
+        self.assertEqual(project["package"], "org.example.readingroom")
+        self.assertEqual(project["initial_version"], "1.2.0")
+        self.assertEqual(project["database"], "reading_room")
+        self.assertEqual(project["ports"], {"backend": 19080, "frontend": 16173, "web": 19081})
+        self.assertEqual(project["modules"], ["catalog"])
+        self.assertEqual(project["switches"], {"deploy": False, "ops": False, "testing": True})
+
+        for forbidden in (str(out.resolve()), "generated_at", '"force"', "dry_run", "argv", "environ"):
+            self.assertNotIn(forbidden, text)
+        self.assertNotIn(b"\r\n", raw)
+        self.assertTrue(text.endswith("\n"))
+
+    def test_json_preview_record_matches_written_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            preview = io.StringIO()
+            with mock.patch.object(scaffold, "detect_generator_source", return_value=dict(FIXED_SOURCE)):
+                with contextlib.redirect_stdout(preview):
+                    self.assertEqual(
+                        scaffold.generate(
+                            ScaffoldGenerationTest.args(out, dry_run=True, json=True,
+                                                        modules="order", with_testing=True)
+                        ),
+                        0,
+                    )
+            plan = json.loads(preview.getvalue())
+            self.assertFalse(out.exists())
+            self.assertIn(".scaffold.json", plan["files"])
+            self.assertEqual(plan["files"].count(".scaffold.json"), 1)
+            self.assertEqual(plan["file_count"], len(plan["files"]))
+            self.assertEqual(plan["scaffold_record"]["path"], ".scaffold.json")
+
+            self.assertEqual(
+                self.generate(out, modules="order", with_testing=True),
+                0,
+            )
+            self.assertEqual(self.read(out), plan["scaffold_record"]["content"])
+
+    def test_text_dry_run_shows_source_and_record_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            preview = io.StringIO()
+            with mock.patch.object(scaffold, "detect_generator_source", return_value=dict(FIXED_SOURCE)):
+                with contextlib.redirect_stdout(preview):
+                    self.assertEqual(
+                        scaffold.generate(ScaffoldGenerationTest.args(out, dry_run=True)), 0
+                    )
+            text = preview.getvalue()
+        self.assertIn("脚手架来源：aaaaaaa", text)
+        self.assertIn(".scaffold.json", text)
+        self.assertFalse(out.exists())
+
+    def test_unknown_source_is_recorded_as_unknown(self) -> None:
+        unknown = {"commit": None, "dirty": None, "status": "unknown"}
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            with mock.patch.object(scaffold, "detect_generator_source", return_value=dict(unknown)):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        scaffold.generate(ScaffoldGenerationTest.args(out)), 0
+                    )
+            record = self.read(out)
+        self.assertEqual(record["generator"]["source"], unknown)
+
+    def test_force_updates_record_and_keeps_user_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            self.assertEqual(self.generate(out, version="0.1.0"), 0)
+            keep = out / "keep.txt"
+            keep.write_text("user content", encoding="utf-8")
+
+            self.assertEqual(self.generate(out, version="0.2.0", force=True), 0)
+            self.assertEqual(self.read(out)["project"]["initial_version"], "0.2.0")
+            self.assertEqual(keep.read_text(encoding="utf-8"), "user content")
+
+    def test_invalid_existing_record_blocks_even_with_force(self) -> None:
+        for content in (
+            "{broken",
+            '{"schema_version": 2, "generator": {"name": "project-scaffold"}}',
+            '{"schema_version": 1, "generator": {"name": "other"}}',
+        ):
+            with self.subTest(content=content):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out = Path(tmp) / "generated"
+                    out.mkdir()
+                    record = out / ".scaffold.json"
+                    record.write_text(content, encoding="utf-8")
+                    self.assertEqual(self.generate(out, force=True), 2)
+                    self.assertEqual(record.read_text(encoding="utf-8"), content)
+                    self.assertFalse((out / "README.md").exists())
+
+    def test_record_path_occupied_by_directory_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            (out / ".scaffold.json").mkdir(parents=True)
+            self.assertEqual(self.generate(out, force=True), 2)
+            self.assertFalse((out / "README.md").exists())
+
+    def test_template_write_failure_does_not_publish_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            with mock.patch.object(scaffold, "write_text", side_effect=OSError("disk full")):
+                self.assertEqual(self.generate(out), 2)
+            self.assertFalse((out / ".scaffold.json").exists())
+
+    def test_record_write_failure_keeps_old_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            self.assertEqual(self.generate(out, version="0.1.0"), 0)
+            before = (out / ".scaffold.json").read_text(encoding="utf-8")
+
+            with mock.patch.object(scaffold, "write_scaffold_record", side_effect=OSError("disk full")):
+                self.assertEqual(self.generate(out, version="0.2.0", force=True), 2)
+            self.assertEqual((out / ".scaffold.json").read_text(encoding="utf-8"), before)
+
+    def test_bad_template_encoding_fails_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            templates = Path(tmp) / "templates"
+            (templates / "root").mkdir(parents=True)
+            (templates / "root" / "bad.txt").write_bytes(b"\xff\xfe\x00")
+            out = Path(tmp) / "generated"
+            with mock.patch.object(scaffold, "TEMPLATES", templates), \
+                    mock.patch.object(scaffold, "DIR_PLAN", [("root", ".", None)]):
+                self.assertEqual(self.generate(out), 2)
+            self.assertFalse(out.exists())
+
+    def test_missing_template_directory_fails_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            templates = Path(tmp) / "templates"
+            templates.mkdir()
+            out = Path(tmp) / "generated"
+            with mock.patch.object(scaffold, "TEMPLATES", templates), \
+                    mock.patch.object(scaffold, "DIR_PLAN", [("root", ".", None)]):
+                self.assertEqual(self.generate(out), 2)
+            self.assertFalse(out.exists())
+
+
+class GeneratorSourceTest(unittest.TestCase):
+    @staticmethod
+    def git(*args: str, cwd: Path) -> None:
+        subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+    def make_repo(self, tmp: str) -> Path:
+        repo = Path(tmp) / "repo"
+        (repo / "scripts").mkdir(parents=True)
+        (repo / "templates").mkdir()
+        (repo / "scripts" / "scaffold.py").write_text("# generator\n", encoding="utf-8")
+        (repo / "templates" / "a.txt").write_text("a\n", encoding="utf-8")
+        (repo / "README.md").write_text("readme\n", encoding="utf-8")
+        self.git("init", "-q", "-b", "main", cwd=repo)
+        self.git("config", "user.email", "t@example.com", cwd=repo)
+        self.git("config", "user.name", "t", cwd=repo)
+        self.git("add", "-A", cwd=repo)
+        self.git("commit", "-q", "-m", "init", cwd=repo)
+        return repo
+
+    def test_clean_repository_reports_git_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self.make_repo(tmp)
+            source = scaffold.detect_generator_source(repo)
+            expected = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+                capture_output=True, text=True, encoding="utf-8",
+            ).stdout.strip()
+        self.assertEqual(source, {"commit": expected, "dirty": False, "status": "git"})
+
+    def test_dirty_only_tracks_generator_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self.make_repo(tmp)
+            (repo / "README.md").write_text("changed\n", encoding="utf-8")
+            self.assertFalse(scaffold.detect_generator_source(repo)["dirty"])
+
+            (repo / "templates" / "new.txt").write_text("new\n", encoding="utf-8")
+            self.assertTrue(scaffold.detect_generator_source(repo)["dirty"])
+
+            (repo / "templates" / "new.txt").unlink()
+            (repo / "scripts" / "scaffold.py").write_text("# changed\n", encoding="utf-8")
+            self.assertTrue(scaffold.detect_generator_source(repo)["dirty"])
+
+    def test_non_repository_and_nested_directory_are_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = Path(tmp) / "plain"
+            plain.mkdir()
+            self.assertEqual(scaffold.detect_generator_source(plain)["status"], "unknown")
+
+            repo = self.make_repo(tmp)
+            nested = repo / "sub"
+            nested.mkdir()
+            self.assertEqual(scaffold.detect_generator_source(nested)["status"], "unknown")
+
+    def test_repository_without_commit_is_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "empty"
+            repo.mkdir()
+            self.git("init", "-q", "-b", "main", cwd=repo)
+            source = scaffold.detect_generator_source(repo)
+        self.assertEqual(source, {"commit": None, "dirty": None, "status": "unknown"})
 
 
 class ScaffoldJsonTest(unittest.TestCase):

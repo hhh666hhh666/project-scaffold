@@ -78,7 +78,7 @@ Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾�
 应先在对话里确认变量，再用显式参数模式。AI 必须显式传入已经确认的绝对 `--out`，不依赖脚本的 `./<name>` 默认值。
 
 ```bash
-# 先预览：把这组最终参数的文件计划、开关与目标目录状态展示给使用者
+# 先预览：把这组最终参数的文件计划、开关、目标目录状态与脚手架来源展示给使用者
 python scripts/scaffold.py --name my-app \
     --package com.example.myapp \
     --out E:/code/my-app --dry-run
@@ -92,7 +92,8 @@ python scripts/scaffold.py --name my-app \
 `--dry-run` 只预览生成文件，不代表数据库、后端或前端已经跑通；生成前确认不替代后续 commit、push、建远程仓库和拉配套 skill 的确认点。
 
 需要把预览交给程序解析时，加 `--json`（**只能与 `--dry-run` 一起用**）：计划以 JSON 写到 stdout，
-错误仍写 stderr，默认文本输出不变。JSON 与实际生成共用同一份文件计划，字段含参数、开关、目标目录状态和文件清单：
+错误仍写 stderr，默认文本输出不变。JSON 与实际生成共用同一份文件计划，字段含参数、开关、目标目录状态、
+文件清单与 `scaffold_record`（即将写入的 `.scaffold.json` 内容）。
 
 ```bash
 python scripts/scaffold.py --name my-app --package com.example.myapp \
@@ -134,7 +135,7 @@ JSON 只是机器可读的预览，正式生成仍使用去掉 `--json` / `--dry
 
 | 模板目录 | 落到新项目 | 开关 |
 |---|---|---|
-| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CLAUDE.md` / `GLOSSARY.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes` / `.github/dependabot.yml`） | 总是 |
+| `root/` | 仓库根（`README.md` / `AGENTS.md` / `CLAUDE.md` / `GLOSSARY.md` / `PRODUCT.md` / `DESIGN.md` / `CHANGELOG.md` / `.env.example` / `.gitignore` / `.gitattributes` / `.github/dependabot.yml`；另由生成器直接写 `.scaffold.json`） | 总是 |
 | `rules/` | `.codebuddy/rules/`（四条，每次会话自动加载） | 总是 |
 | `commands/` | `.codebuddy/commands/`（收尾命令 `/wrap-up`） | 总是 |
 | `docs/` | `docs/`（地图 + 目录树 + ADR + 需求 + 设计 + 待办 + 会话工作台 + 开发规约） | 总是 |
@@ -149,6 +150,13 @@ JSON 只是机器可读的预览，正式生成仍使用去掉 `--json` / `--dry
 
 生成后恒定存在的目录（空的补 `.gitkeep`）：`docs/adr`、`docs/design`、`docs/development`、
 `docs/operations`、`docs/requirements`、`docs/testing`、`docs/todo/archive`、`docs/worklog`。
+
+### 生成记录
+
+正式生成还会在项目根写 `.scaffold.json`：记录脚手架来源提交（能识别时）、生成器/模板是否有本地改动，
+以及本次生成的项目参数。它默认生成、建议入库，用于追溯「从哪版骨架、按哪些选项开始」；
+**不是当前配置的真相源，也不是升级依据**。dry-run（文本与 JSON）都会提前展示这份记录。
+完整说明见 [references/SCAFFOLD-METADATA.md](references/SCAFFOLD-METADATA.md)。
 
 ---
 
@@ -221,7 +229,8 @@ project-scaffold/
 │   ├── TESTING-SYSTEM.md    # 测试规范；e2e 与探索测试为什么明确不沉淀
 │   ├── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
 │   ├── SKILL-SOURCES.json   # 配套 skill 的固定提交与监测分支
-│   └── SKILL-FETCHING.md    # 固定基线安装、来源记录与过期检查的规则
+│   ├── SKILL-FETCHING.md    # 固定基线安装、来源记录与过期检查的规则
+│   └── SCAFFOLD-METADATA.md # 生成记录 .scaffold.json 的语义与边界
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
 │   ├── check_consistency.py # 仓库自身维护检查：版本表与 skill 清单（离线、只读）
@@ -245,7 +254,7 @@ python scripts/check_consistency.py
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
 它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、固定提交安装、
-来源记录与过期检查，以及 Dependabot 模板的结构与生成结果。
+来源记录与过期检查、`.scaffold.json` 的参数与来源识别，以及 Dependabot 模板的结构与生成结果。
 
 `check_consistency.py` 是另一道只读门禁：把 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表
 与模板 `pom.xml` / `package.json` / Dockerfile 对齐，并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表

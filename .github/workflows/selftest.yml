@@ -66,19 +66,29 @@ jobs:
         run: |
           set -euo pipefail
           OUT="$RUNNER_TEMP/scaffold-smoke"
+          HEAD_SHA="$(git rev-parse HEAD)"
           rm -rf "$OUT"
 
           # 先走 AI 的正式入口：dry-run JSON 预览必须可解析，且不落盘。
           python scripts/scaffold.py --name ci-smoke --package com.example.cismoke \
             --out "$OUT" --with-deploy --with-ops --with-testing --dry-run --json \
             > "$RUNNER_TEMP/plan.json"
-          python - "$RUNNER_TEMP/plan.json" <<'PY'
+          python - "$RUNNER_TEMP/plan.json" "$HEAD_SHA" <<'PY'
           import json
           import sys
 
           plan = json.load(open(sys.argv[1], encoding="utf-8"))
           assert plan["dry_run"] is True
           assert plan["file_count"] == len(plan["files"]) == len(set(plan["files"]))
+          assert plan["files"].count(".scaffold.json") == 1
+
+          record = plan["scaffold_record"]["content"]
+          assert record["schema_version"] == 1
+          assert record["generator"]["name"] == "project-scaffold"
+          assert record["generator"]["source"] == {
+              "commit": sys.argv[2], "dirty": False, "status": "git",
+          }
+          assert record["project"]["name"] == "ci-smoke"
           print(f"预览 {plan['file_count']} 个文件 / 占位")
           PY
           test ! -e "$OUT"
@@ -86,6 +96,16 @@ jobs:
           # 与预览完全相同的参数正式生成。
           python scripts/scaffold.py --name ci-smoke --package com.example.cismoke \
             --out "$OUT" --with-deploy --with-ops --with-testing
+
+          # 预览里的记录必须与真实落盘一致。
+          python - "$OUT/.scaffold.json" "$RUNNER_TEMP/plan.json" <<'PY'
+          import json
+          import sys
+
+          actual = json.load(open(sys.argv[1], encoding="utf-8"))
+          plan = json.load(open(sys.argv[2], encoding="utf-8"))
+          assert actual == plan["scaffold_record"]["content"]
+          PY
 
           # 链接守卫只扫已跟踪文件：必须先初始化并暂存。
           cd "$OUT"
