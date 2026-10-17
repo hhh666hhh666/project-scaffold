@@ -75,8 +75,10 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 ### 3. 衔接一：提示式触发需求打磨
 
 先检查配套 skill：当前会话没有 `grill-with-docs`，或设计组 5 个（`impeccable` 等）有缺时，
-用 `scripts/fetch_skills.py` 从官方仓库拉最新版——**先 `--check` 给使用者看清单（含每个 skill 装到哪一步），
-一次确认后再拉**（步骤见剧本「衔接段」）。拉到的**不是上游完全体**：只装 skill 目录，hooks、安装器、模板不装。
+用 `scripts/fetch_skills.py` 按 `references/SKILL-SOURCES.json` 的**固定提交**安装——**先 `--check`
+给使用者看清单（含每个 skill 的来源提交、装到哪一步），一次确认后再拉**（步骤见剧本「衔接段」）。
+已装的一律不动；`--outdated` 只报告本机记录、锁定基线与上游分支头的差异，**不升级、不覆盖**。
+拉到的**不是上游完全体**：只装 skill 目录，hooks、安装器、模板不装。
 
 初始化完成后打总结并给出可直接复制的触发串，**等用户手动触发**
 （WorkBuddy 写 `@skill:grill-with-docs`，Claude Code 写 `/grill-with-docs`）。
@@ -97,7 +99,8 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 ## 会话边界
 
 默认**一气呵成**；允许在大阶段之间断开（生成 / 初始化 / 需求打磨 / 产品与设计）。
-续跑靠剧本 + 项目现场自检（`git log` / 所选数据库的连通状态 / 四条守卫 / 已有文档），**不建跨会话状态文件**。
+续跑靠剧本 + 项目现场自检（`git log` / 所选数据库的连通状态 / 四条守卫 / 已有文档），**不建跨会话的任务进度文件**；
+配套 skill 的 `.fetched.json` 是安装来源记录，不是进度状态，不受这条限制。
 
 ---
 
@@ -122,7 +125,9 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 | 文件 | 看什么 |
 |---|---|
 | `references/POST-SCAFFOLD.md` | ★ 初始化剧本（六阶段 + 确认点 + 判据 + 常见坑 + 衔接段） |
-| `scripts/fetch_skills.py` | 配套 skill 按需拉取（本地没有才拉、不覆盖、`--check` 只查不拉） |
+| `scripts/fetch_skills.py` | 配套 skill 按固定基线安装（本地没有才拉、不覆盖、`--check` 只查不拉、`--outdated` 只报告） |
+| `references/SKILL-SOURCES.json` | 配套 skill 的固定提交与监测分支 |
+| `references/SKILL-FETCHING.md` | 固定基线、来源记录与过期检查的完整规则 |
 | `references/VARIABLES.md` | 变量表、占位符语法（只有全大写会被替换）、目录映射 |
 | `references/DOC-SYSTEM.md` | 文档体系搬了什么、改成什么样、地图与树为什么成对 |
 | `references/TECH-STACK.md` | 后端 / 前端 / Docker / CI 的取舍，以及**不搬**的业务件 |

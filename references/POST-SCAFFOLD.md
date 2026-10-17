@@ -193,18 +193,29 @@ ls docs/worklog/                     # 上一份工作台写到哪了
 具体差在哪，`--check` 会在每个缺失项下面用 `↳` 标出来，生成项目的 `docs/design/设计skill清单.md` 里也有档案。
 
 1. **当前会话的可用 skill 列表里已经有** → 那几个不用碰脚本；全都有就直接进下面的衔接。
-2. **有缺的** → 先只查不拉，看缺哪些、会从哪拉、各自装到哪一步：
+2. **有缺的** → 先只查不拉，看缺哪些、从哪个仓库的哪个固定提交拉、各自装到哪一步：
    ```bash
    python <skill>/scripts/fetch_skills.py --dest <skill 目录> --check grill-with-docs design
    ```
    `<skill 目录>` 是当前 AI 工具的用户级 skill 目录：WorkBuddy 为 `~/.workbuddy/skills`，
-   Claude Code 为 `~/.claude/skills`；其他工具查它自己的文档。
-3. **把这份清单给使用者看，确认后**去掉 `--check` 再跑一次。脚本只补缺的、不覆盖已有的，
-   装完打印每个 skill 的来源 commit，**原样记进 worklog**。**一次确认覆盖整份清单**，别逐个问。
+   Claude Code 为 `~/.claude/skills`；其他工具查它自己的文档。锁定提交在
+   `references/SKILL-SOURCES.json`，`--check` 不联网、不写盘。
+3. **把这份清单给使用者看，确认后**去掉 `--check` 再跑一次。脚本只补缺的、不覆盖已有的；
+   安装严格使用锁定提交，目标目录没有 `SKILL.md` 或是普通文件时报告冲突、不接管。
+   装完打印每个 skill 的来源 commit（缩写；完整值与该目录的原始文件摘要写在它自己的 `.fetched.json`），
+   **原样记进 worklog**。**一次确认覆盖整份清单**，别逐个问。
 4. 多数工具只在会话开始时扫描 skill 目录：装完当前会话看不到，就提示使用者**开新会话再触发**——
    这正好落在自然断点上。
 5. 使用者不同意、或拉取失败 → 在总结里说明这一步本来要做什么、去哪装，并落一条 `docs/todo/`，**不卡住收尾**。
+   部分仓库失败时，已完成的安装保留、未完成项列清楚，不用「整个失败」掩盖已经发生的修改。
    设计组缺了不影响收尾：`design-skills.md` 本来就写明「没装就跳过」。
+6. 以后想确认是否与上游有差异，可以单独跑只读检查：
+   ```bash
+   python <skill>/scripts/fetch_skills.py --dest <skill 目录> --outdated grill-with-docs design
+   ```
+   它分别报告来源记录是否有效、本机文件有没有被改、锁定基线与上游分支头是否不同。
+   **提交号不同不等于落后**；这条命令不安装、不升级、不覆盖，升级与否由使用者另行决定。
+   此前手工装过、没有 `.fetched.json` 的，只会显示「来源未知」，脚本不会猜一个来源补上。
 
 ⚠️ 不要用 `npx impeccable install` 代替脚本：它默认给项目装 hooks，与本项目「impeccable 不装 hooks」的约定冲突。
 ⚠️ `ui-ux-pro-max` 的上游文档把 `--persist` 当推荐用法，**照抄会违反** `design-skills.md` 里「只查不写」的硬禁区，以后者为准。

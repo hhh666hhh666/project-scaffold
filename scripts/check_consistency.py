@@ -5,7 +5,7 @@
 
 1. 依赖版本：references/TECH-STACK.md 的版本表 ←→ 模板 pom.xml / package.json / Dockerfile。
    只查明确登记过的条目；被 Spring Boot 父 POM 管理的依赖不尝试解析远程有效版本。
-2. 配套 skill：fetch_skills.py 的登记表 ←→ 安装说明与设计规则里的清单表格。
+2. 配套 skill：fetch_skills.py 的登记表、SKILL-SOURCES.json 的锁定项 ←→ 安装说明与设计规则里的清单表格。
 
 约束：
     * 仅标准库、离线、只读；不调用 git / Maven / npm。
@@ -263,10 +263,18 @@ def check_versions(root: Path) -> list[str]:
 
 # ────────────────────────────── 配套 skill ──────────────────────────────
 
-def registry_problems() -> list[str]:
-    """先查登记表自身：分组、依赖、备注、来源地址都不能指向不存在或自相矛盾的东西。"""
+def registry_problems(root: Path | None = None) -> list[str]:
+    """先查登记表自身：分组、依赖、备注、来源地址与锁定清单都不能自相矛盾。"""
     problems: list[str] = []
     skills = fetch_skills.SKILLS
+
+    sources_path = (root or fetch_skills.ROOT) / "references" / "SKILL-SOURCES.json"
+    try:
+        sources = fetch_skills.load_sources(sources_path)
+    except fetch_skills.SourceError as exc:
+        problems.append(str(exc))
+    else:
+        problems.extend(fetch_skills.source_problems(sources))
 
     for name, (repo, src) in sorted(skills.items()):
         if not repo.startswith("https://github.com/"):
@@ -329,7 +337,7 @@ def registry_problems() -> list[str]:
 
 def check_skills(root: Path) -> list[str]:
     checker = Checker(root)
-    for problem in registry_problems():
+    for problem in registry_problems(root):
         checker.problems.append(problem)
 
     design = set(fetch_skills.GROUPS.get("design", ()))

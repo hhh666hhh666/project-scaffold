@@ -64,8 +64,10 @@ Claude Code 读根 `CLAUDE.md`，它导入 `AGENTS.md` 与四条规则。收尾�
 | | `ui-ux-pro-max` | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)（MIT） |
 <!-- consistency:source-skills:end -->
 
-本地没有时，AI 会先用 `scripts/fetch_skills.py --check` 列出缺哪些，**经使用者一次确认后**才从官方仓库拉最新版；
-已装的一律不动。
+本地没有时，AI 会先用 `scripts/fetch_skills.py --check` 列出缺哪些、从哪个仓库的**固定提交**安装，
+**经使用者一次确认后**才拉取；已装的一律不动。新安装会写 `.fetched.json` 记录来源、完整提交与原始文件摘要。
+`--outdated` 可以只读比较本机记录、锁定基线与上游分支头，但它不升级、不覆盖任何 skill。
+完整规则见 [references/SKILL-FETCHING.md](references/SKILL-FETCHING.md)。
 
 ⚠️ **拉到的不是上游「完全体」**：只复制 skill 目录、不跑上游安装器，所以 `impeccable` 的 hooks、
 `ui-ux-pro-max` 的 CLI 安装器 / 模板 / 展示页都不装。这是刻意的取舍，理由记在生成项目的 `docs/design/设计skill清单.md` 里。
@@ -199,6 +201,7 @@ AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git comm
 - 集成测试用 **Testcontainers + 真 MySQL**，不用 H2——迁移脚本是 MySQL 方言，用 H2 等于把「测试环境与真实环境不一致」请回来；
 - 前端 Dockerfile **必须 glibc 基础镜像**（Node 的 slim 镜像，非 alpine）——esbuild 没有 x64-musl 官方二进制；
 - 模板里**没有任何真实凭据**：密钥、密码、服务器 IP 全是占位符，真实值一律走 GitHub Secrets；
+- 配套 skill **按固定提交安装**并记录来源，不追上游最新分支头；`--outdated` 只报告差异，不自动升级；
 - 色值**不预设**：`tokens.css` 只给中性灰阶 + 一个标 TODO 的主色，产品身份留给新项目自己。
 
 ---
@@ -216,11 +219,13 @@ project-scaffold/
 │   ├── TECH-STACK.md        # 后端 / 前端 / Docker / CI 的取舍，以及不搬的业务件
 │   ├── FRONTEND-SYSTEM.md   # 前端设计体系三层与色值口径
 │   ├── TESTING-SYSTEM.md    # 测试规范；e2e 与探索测试为什么明确不沉淀
-│   └── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
+│   ├── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
+│   ├── SKILL-SOURCES.json   # 配套 skill 的固定提交与监测分支
+│   └── SKILL-FETCHING.md    # 固定基线安装、来源记录与过期检查的规则
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
 │   ├── check_consistency.py # 仓库自身维护检查：版本表与 skill 清单（离线、只读）
-│   └── fetch_skills.py      # 配套 skill 按需拉取（本地没有才拉，不覆盖）
+│   └── fetch_skills.py      # 配套 skill 按固定基线安装（本地没有才拉，不覆盖）
 ├── tests/                   # 仓库自身离线回归测试（unittest，仅标准库）
 ├── .github/workflows/
 │   └── selftest.yml         # 仓库级 CI：Python 回归 + 生成物守卫冒烟
@@ -239,12 +244,12 @@ python scripts/check_consistency.py
 ```
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
-它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、离线拉取流程，
-以及 Dependabot 模板的结构与生成结果。
+它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、固定提交安装、
+来源记录与过期检查，以及 Dependabot 模板的结构与生成结果。
 
 `check_consistency.py` 是另一道只读门禁：把 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表
-与模板 `pom.xml` / `package.json` / Dockerfile 对齐，并核对四张配套 skill 清单表与 `fetch_skills.py` 的登记表。
-它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
+与模板 `pom.xml` / `package.json` / Dockerfile 对齐，并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表
+和 `SKILL-SOURCES.json` 的提交格式与仓库覆盖。它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
 
 `.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13）与一致性检查，
 并在临时目录生成全开关项目、跑四条生成项目守卫。仓库级 CI **不覆盖**真实数据库、浏览器、Maven/npm 构建、

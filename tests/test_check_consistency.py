@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import shutil
 import sys
 import tempfile
@@ -21,6 +22,7 @@ FIXTURE_FILES = (
     "templates/frontend/package.json",
     "templates/frontend/Dockerfile",
     "references/TECH-STACK.md",
+    "references/SKILL-SOURCES.json",
     "README.md",
     "references/POST-SCAFFOLD.md",
     "templates/rules/design-skills.md",
@@ -261,6 +263,45 @@ class RegistryTest(unittest.TestCase):
         ), mock.patch.dict(cc.fetch_skills.DEPENDS, {"a": ["b"], "b": ["a"]}):
             problems = cc.registry_problems()
         self.assertTrue(any("依赖环" in p for p in problems), problems)
+
+
+class SourcesCheckTest(unittest.TestCase):
+    def lock_path(self, root: Path) -> Path:
+        return root / "references" / "SKILL-SOURCES.json"
+
+    def test_short_sha_in_lock_file_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            path = self.lock_path(root)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            first = next(iter(data["repositories"]))
+            data["repositories"][first]["commit"] = "abc1234"
+            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+            problems = cc.check_skills(root)
+        self.assertTrue(any("40 位" in p for p in problems), problems)
+
+    def test_missing_repository_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            path = self.lock_path(root)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["repositories"].pop("https://github.com/mattpocock/skills")
+            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+            problems = cc.check_skills(root)
+        self.assertTrue(any("缺少仓库" in p for p in problems), problems)
+
+    def test_duplicate_json_key_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            path = self.lock_path(root)
+            text = path.read_text(encoding="utf-8")
+            path.write_text(text.replace('"schema_version": 1,', '"schema_version": 1, "schema_version": 1,', 1),
+                            encoding="utf-8")
+
+            problems = cc.check_skills(root)
+        self.assertTrue(any("锁定清单解析失败" in p for p in problems), problems)
 
 
 class CliTest(unittest.TestCase):
