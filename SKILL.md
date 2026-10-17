@@ -133,6 +133,8 @@ Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Li
 | `references/SKILL-SOURCES.json` | 配套 skill 的固定提交与监测分支 |
 | `references/SKILL-FETCHING.md` | 固定基线、来源记录与过期检查的完整规则 |
 | `references/SCAFFOLD-METADATA.md` | 生成记录 `.scaffold.json` 的字段、来源识别与边界 |
+| `references/ARCHITECTURE.md` | 流程架构图与四层职责（使用入口 / 仓库能力 / 产出 / 外部系统） |
+| `references/TECH-ARCHITECTURE.md` | 技术架构：生成项目运行时、质量与交付、脚手架仓库自身 |
 | `references/VARIABLES.md` | 变量表、占位符语法（只有全大写会被替换）、目录映射 |
 | `references/DOC-SYSTEM.md` | 文档体系搬了什么、改成什么样、地图与树为什么成对 |
 | `references/TECH-STACK.md` | 后端 / 前端 / Docker / CI 的取舍，以及**不搬**的业务件 |

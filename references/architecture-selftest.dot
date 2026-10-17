@@ -1,0 +1,111 @@
+digraph selftest {
+  graph [
+    rankdir=TB,
+    fontname="Microsoft YaHei",
+    fontsize=13,
+    bgcolor="#ffffff",
+    pad=0.42,
+    nodesep=0.4,
+    ranksep=0.55,
+    splines=spline
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Microsoft YaHei",
+    fontsize=10.5,
+    color="#b9c4cf",
+    fillcolor="#f7f9fb",
+    penwidth=1.2,
+    margin="0.15,0.10"
+  ];
+  edge [
+    color="#7d8a97",
+    fontname="Microsoft YaHei",
+    fontsize=9.5,
+    arrowsize=0.7,
+    penwidth=1.1
+  ];
+
+  subgraph cluster_ci {
+    label="仓库级 CI：selftest.yml（每次 push / PR）";
+    fontsize=12;
+    color="#efe1cf";
+    style="rounded,filled";
+    fillcolor="#fffdf9";
+    pyjob [label="Python job\n3.11 / 3.12 / 3.13\nunittest", fillcolor="#fbf3e8"];
+    consjob [label="consistency job\ncheck_consistency.py", fillcolor="#fbf3e8"];
+    smokejob [label="smoke job\n全开关生成\n+ 生成项目四条守卫", fillcolor="#fbf3e8"];
+    { rank=same; pyjob; consjob; smokejob; }
+  }
+
+  subgraph cluster_full {
+    label="定时完整构建：full-build.yml（每周 · 手动 · 模板/生成器 PR）";
+    fontsize=12;
+    color="#efd7d7";
+    style="rounded,filled";
+    fillcolor="#fffafa";
+    fullgen [label="生成全开关项目\n到 runner 临时目录", fillcolor="#fbebeb"];
+    fullback [label="后端\nmvn -B -ntp verify\n确认 jar 产物", fillcolor="#fbebeb"];
+    fullfront [label="前端\nnpm install\ntypecheck · build\n确认 dist 产物", fillcolor="#fbebeb"];
+    { rank=same; fullback; fullfront; }
+  }
+
+  subgraph cluster_tests {
+    label="离线测试";
+    fontsize=12;
+    color="#d9e9de";
+    style="rounded,filled";
+    fillcolor="#fbfefc";
+    fixtures [label="测试夹具\n隔离临时目录\n本地 Git / fake git\n不访问网络与用户 skill 目录", fillcolor="#eef8f1"];
+    unit [label="tests/ · unittest\ntest_scaffold\ntest_fetch_skills\ntest_check_consistency\ntest_full_build_workflow", fillcolor="#eef8f1"];
+    { rank=same; fixtures; unit; }
+  }
+
+  subgraph cluster_scripts {
+    label="仓库脚本（仅 Python 标准库）";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+    scaffold [label="scaffold.py\n渲染 · dry-run · JSON\n.scaffold.json"];
+    fetch [label="fetch_skills.py\n固定提交安装\n.fetched.json · --outdated"];
+    check [label="check_consistency.py\n版本表 / skill 清单 / 锁定项\n离线只读"];
+    { rank=same; scaffold; fetch; check; }
+  }
+
+  subgraph cluster_inputs {
+    label="输入与真相源";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+    templates [label="templates/\nSpring Boot · Vue · Docker\n文档 · 守卫脚本"];
+    versions [label="references/TECH-STACK.md\n版本表 + 四张 skill 清单"];
+    sources [label="references/SKILL-SOURCES.json\n仓库 + 完整提交"];
+    localgit [label="脚手架本地 Git\n提交 / 生成器与模板改动", fillcolor="#eef8f1"];
+    { rank=same; templates; versions; sources; localgit; }
+  }
+
+  guards [label="生成项目四条守卫\n链接 · 待办 · 模块测试 · 版本", fillcolor="#eef8f1"];
+
+  pyjob -> unit [label="执行"];
+  consjob -> check [label="执行"];
+  smokejob -> scaffold [label="生成"];
+  smokejob -> guards [label="再跑"];
+
+  fullgen -> fullback [label="生成后端"];
+  fullgen -> fullfront [label="生成前端"];
+  fullgen -> scaffold [label="调用"];
+
+  fixtures -> unit [style=dashed, label="提供"];
+  unit -> scaffold [style=dotted, label="覆盖"];
+  unit -> fetch [style=dotted];
+  unit -> check [style=dotted];
+
+  scaffold -> templates [label="读取 / 渲染"];
+  scaffold -> localgit [style=dashed, label="来源探测"];
+  fetch -> sources [label="锁定提交"];
+  check -> versions [label="比对"];
+  check -> sources [style=dashed, label="结构校验"];
+}

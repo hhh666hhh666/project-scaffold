@@ -537,11 +537,11 @@ def main(argv: list[str] | None = None) -> int:
             meta, meta_problems = read_metadata(dest / n, n)
             note = "来源未知" if meta is None and not meta_problems else (
                 f"来源 {meta['commit'][:7]}" if meta else "来源记录无效")
-            print(f"          ↳ {note}")
+            print(f"          - {note}")
         elif state == "missing":
             missing.append(n)
             if n in NOTES:
-                print(f"          ↳ {NOTES[n]}")
+                print(f"          - {NOTES[n]}")
         else:
             blocked.append(n)
 

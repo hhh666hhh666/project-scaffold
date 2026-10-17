@@ -1,0 +1,96 @@
+digraph scaffold {
+  graph [
+    rankdir=TB,
+    fontname="Microsoft YaHei",
+    fontsize=13,
+    bgcolor="#ffffff",
+    pad=0.45,
+    nodesep=0.42,
+    ranksep=0.62,
+    splines=spline,
+    compound=true
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Microsoft YaHei",
+    fontsize=11,
+    color="#b9c4cf",
+    fillcolor="#f7f9fb",
+    penwidth=1.2,
+    margin="0.16,0.11"
+  ];
+  edge [
+    color="#7d8a97",
+    fontname="Microsoft YaHei",
+    fontsize=10,
+    arrowsize=0.7,
+    penwidth=1.1
+  ];
+
+  subgraph cluster_use {
+    label="① 使用入口";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+    owner [label="主人", shape=oval, fillcolor="#eaf2fb"];
+    ai [label="AI 编码助手\nWorkBuddy / Claude Code"];
+    skill [label="SKILL.md\n工作流 · 确认点 · 会话边界"];
+    { rank=same; owner; ai; skill; }
+  }
+
+  subgraph cluster_repo {
+    label="② project-scaffold 仓库：四类能力";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+
+    generator [label="生成器\nscripts/scaffold.py + templates/\n渲染 · dry-run · .scaffold.json"];
+    post [label="初始化剧本\nreferences/POST-SCAFFOLD.md\n六阶段 → CI 首绿"];
+    fetch [label="配套 skill 安装\nscripts/fetch_skills.py\n+ SKILL-SOURCES.json"];
+    guards [label="仓库维护门禁\ntests/ + check_consistency.py\n+ selftest.yml"];
+    { rank=same; generator; post; fetch; guards; }
+  }
+
+  subgraph cluster_out {
+    label="③ 产出";
+    fontsize=12;
+    color="#d9e9de";
+    style="rounded,filled";
+    fillcolor="#fbfefc";
+    project [label="新项目骨架\nbackend · frontend · docs · scripts\n.github · .scaffold.json", fillcolor="#eef8f1"];
+    user_skills [label="用户级 skill 目录\n每个 skill 带 .fetched.json", fillcolor="#eef8f1"];
+    { rank=same; project; user_skills; }
+  }
+
+  subgraph cluster_ext {
+    label="④ 外部系统";
+    fontsize=12;
+    color="#efe1cf";
+    style="rounded,filled";
+    fillcolor="#fffdf9";
+    remote [label="生成项目的 GitHub 远程\nCI 首绿 · Dependabot 提案", fillcolor="#fbf3e8"];
+    upstream [label="GitHub 官方 skill 仓库\n按锁定提交获取", fillcolor="#fbf3e8"];
+    { rank=same; remote; upstream; }
+  }
+
+  owner -> ai [label="提出需求"];
+  ai -> skill [label="触发 skill"];
+
+  skill -> generator [label="对话收集变量 → dry-run\n确认后生成"];
+  skill -> post [label="生成完不停拍"];
+  skill -> fetch [label="本地缺配套 skill"];
+
+  generator -> project [label="写文件\n最后原子发布记录"];
+  post -> project [label="初始化六阶段"];
+  fetch -> user_skills [label="只补缺 · 不覆盖"];
+  fetch -> upstream [label="git fetch <sha>"];
+
+  guards -> generator [style=dotted, label="版本表比对"];
+  guards -> fetch [style=dotted, label="锁定清单校验"];
+  guards -> project [style=dotted, label="生成物冒烟"];
+
+  project -> remote [label="建仓 / push"];
+}

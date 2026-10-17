@@ -1,0 +1,84 @@
+digraph quality {
+  graph [
+    rankdir=TB,
+    fontname="Microsoft YaHei",
+    fontsize=13,
+    bgcolor="#ffffff",
+    pad=0.42,
+    nodesep=0.38,
+    ranksep=0.55,
+    splines=spline
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Microsoft YaHei",
+    fontsize=10.5,
+    color="#b9c4cf",
+    fillcolor="#f7f9fb",
+    penwidth=1.2,
+    margin="0.15,0.10"
+  ];
+  edge [
+    color="#7d8a97",
+    fontname="Microsoft YaHei",
+    fontsize=9.5,
+    arrowsize=0.7,
+    penwidth=1.1
+  ];
+
+  subgraph cluster_gates {
+    label="本地与 CI 共用的质量门禁";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+
+    fe [label="前端门禁\nnpm ci → vue-tsc --noEmit → vite build"];
+    be [label="后端单元测试\nmvn test\n只跑 *Test，不启动容器"];
+    it [label="后端集成测试\nmvn verify\n*IT + Testcontainers + MySQL 8", fillcolor="#fdf7ee"];
+    guards [label="四条机械守卫\n链接 · 待办归档\n模块测试 · 版本对齐"];
+    docs [label="文档体系\ndocs/ + .codebuddy/rules/\n改代码 = 改文档", fillcolor="#eef8f1"];
+    { rank=same; fe; be; guards; }
+  }
+
+  subgraph cluster_ci {
+    label="GitHub Actions";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+
+    ci [label="ci.yml\npush / PR 到 master\n文档守卫 · 后端单测 · 前端类型与构建", fillcolor="#eef8f1"];
+    release [label="release.yml（可选）\nv* tag 触发\n版本门禁 → 迁移验证 → 镜像 → 部署", fillcolor="#eef8f1"];
+    dep [label="dependabot.yml\n每周 Maven / npm / Actions\n升级 PR，不自动合并", fillcolor="#eef8f1"];
+  }
+
+  subgraph cluster_deliver {
+    label="发布链路";
+    fontsize=12;
+    color="#efe1cf";
+    style="rounded,filled";
+    fillcolor="#fffdf9";
+
+    version [label="版本守卫\ntag ↔ 两处版本 ↔ CHANGELOG\ncompose 用 ${APP_VERSION}", fillcolor="#fbf3e8"];
+    replay [label="迁移重放\n一次性 mysql:8\n顺序 / 命名 / 版本递增", fillcolor="#fbf3e8"];
+    images [label="镜像构建并推送\nserver（JRE）· web（nginx）\n不推 latest", fillcolor="#fbf3e8"];
+    server [label="服务器\ncompose.prod 拉取\n宿主反代 · 健康检查", fillcolor="#fbf3e8"];
+    { rank=same; version; replay; }
+  }
+
+  docs -> guards [style=dashed, label="检查链接 / 待办 / 模块测试"];
+  be -> it [style=dashed, label="同一模块另写 *IT\n需要 Docker"];
+
+  ci -> fe [label="前端 job"];
+  ci -> be [label="后端 job"];
+  ci -> guards [label="文档 job"];
+
+  dep -> ci [style=dashed, label="升级 PR 走普通 CI"];
+
+  release -> version [label="先生效"];
+  release -> replay [label="再验证"];
+  replay -> images [label="通过后构建"];
+  images -> server [label="SSH 部署"];
+}

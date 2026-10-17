@@ -12,6 +12,18 @@
 
 ---
 
+## 架构
+
+![project-scaffold 架构](references/architecture.svg)
+
+四层：**使用入口 → 仓库四类能力 → 产出 → 外部系统**。逐层说明、关键边界与重绘方法见
+[references/ARCHITECTURE.md](references/ARCHITECTURE.md)。
+
+技术架构另分三张图：生成项目的**运行时**（前后端与数据库）、**质量与交付**（测试 / 守卫 / CI / 发布）、
+以及**脚手架仓库自身**（脚本 / 离线测试 / selftest），见 [references/TECH-ARCHITECTURE.md](references/TECH-ARCHITECTURE.md)。
+
+---
+
 ## 它解决什么
 
 | 常见状况 | 这个项目怎么处理 |
@@ -230,14 +242,22 @@ project-scaffold/
 │   ├── QUALITY-POLICY.md    # 成熟度三档、静态分析与 lint 的取舍
 │   ├── SKILL-SOURCES.json   # 配套 skill 的固定提交与监测分支
 │   ├── SKILL-FETCHING.md    # 固定基线安装、来源记录与过期检查的规则
-│   └── SCAFFOLD-METADATA.md # 生成记录 .scaffold.json 的语义与边界
+│   ├── SCAFFOLD-METADATA.md # 生成记录 .scaffold.json 的语义与边界
+│   ├── ARCHITECTURE.md      # 流程架构图与四层说明
+│   ├── architecture.dot     # 流程架构图的 Graphviz 源文件
+│   ├── architecture.svg     # 流程架构图（由 .dot 生成）
+│   ├── TECH-ARCHITECTURE.md # 技术架构：运行时 / 质量与交付 / 仓库自身
+│   ├── architecture-runtime.dot / .svg   # 生成项目运行时
+│   ├── architecture-quality.dot / .svg   # 测试 / 守卫 / CI / 发布
+│   └── architecture-selftest.dot / .svg  # 脚手架仓库自身
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
 │   ├── check_consistency.py # 仓库自身维护检查：版本表与 skill 清单（离线、只读）
 │   └── fetch_skills.py      # 配套 skill 按固定基线安装（本地没有才拉，不覆盖）
 ├── tests/                   # 仓库自身离线回归测试（unittest，仅标准库）
 ├── .github/workflows/
-│   └── selftest.yml         # 仓库级 CI：Python 回归 + 生成物守卫冒烟
+│   ├── selftest.yml         # 每次 push / PR：Python 回归 + 一致性检查 + 生成物守卫冒烟
+│   └── full-build.yml       # 每周定时 / 手动 / 模板 PR：真实构建生成的后端与前端
 └── templates/               # 模板文件（见上文「生成什么」）
 ```
 
@@ -254,15 +274,24 @@ python scripts/check_consistency.py
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
 它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、固定提交安装、
-来源记录与过期检查、`.scaffold.json` 的参数与来源识别，以及 Dependabot 模板的结构与生成结果。
+来源记录与过期检查、`.scaffold.json` 的参数与来源识别、Dependabot 模板的结构与生成结果，
+以及完整构建工作流的触发条件、只读权限与构建命令。
 
 `check_consistency.py` 是另一道只读门禁：把 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表
-与模板 `pom.xml` / `package.json` / Dockerfile 对齐，并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表
-和 `SKILL-SOURCES.json` 的提交格式与仓库覆盖。它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
+与模板 `pom.xml` / `package.json` / Dockerfile，以及 CI 工作流里写死的 JDK / Node 版本对齐，
+并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表和 `SKILL-SOURCES.json` 的提交格式与仓库覆盖。
+它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
 
 `.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13）与一致性检查，
-并在临时目录生成全开关项目、跑四条生成项目守卫。仓库级 CI **不覆盖**真实数据库、浏览器、Maven/npm 构建、
-外部 skill 拉取，也不验证 Dependabot 服务的实际开 PR 行为。
+并在临时目录生成全开关项目、跑四条生成项目守卫；一致性检查也会核对 CI 里写死的 JDK / Node 版本。
+
+`.github/workflows/full-build.yml` 是另一层门禁：每周定时、手动触发，以及改动 `templates/**` 或
+`scripts/scaffold.py` 的 PR 上，用模板真实生成一个项目，再跑后端 `mvn -B -ntp verify` 和前端
+`npm install → typecheck → build`，并确认 jar 与 `dist/index.html` 真的存在。它需要网络与真实 toolchain，
+是分钟级任务，所以不挂在每次 push 上。模板不带 `package-lock.json`，因此这里用 `npm install` 而不是 `npm ci`。
+
+两层 CI 都**不覆盖**真实数据库、浏览器、外部 skill 拉取，也不验证 Dependabot 服务的实际开 PR 行为；
+真实固定提交安装仍只做人工验收。
 
 ---
 

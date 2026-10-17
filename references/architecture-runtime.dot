@@ -1,0 +1,104 @@
+digraph runtime {
+  graph [
+    rankdir=LR,
+    fontname="Microsoft YaHei",
+    fontsize=13,
+    bgcolor="#ffffff",
+    pad=0.4,
+    nodesep=0.34,
+    ranksep=0.62,
+    splines=spline
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Microsoft YaHei",
+    fontsize=10.5,
+    color="#b9c4cf",
+    fillcolor="#f7f9fb",
+    penwidth=1.2,
+    margin="0.14,0.10"
+  ];
+  edge [
+    color="#7d8a97",
+    fontname="Microsoft YaHei",
+    fontsize=9.5,
+    arrowsize=0.7,
+    penwidth=1.1
+  ];
+
+  subgraph cluster_client {
+    label="客户端";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+    browser [label="浏览器\nVue SPA", shape=oval, fillcolor="#eaf2fb"];
+  }
+
+  subgraph cluster_frontend {
+    label="前端：Vue 3 + Vite + TypeScript";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+
+    subgraph cluster_dev {
+      label="本机开发";
+      fontsize=10;
+      color="#e5edf5";
+      style="rounded,dashed";
+      vite [label="Vite dev server :5173\nVue Router · Pinia\nTailwind v4 · shadcn-vue\n/api → 127.0.0.1:8080"];
+    }
+
+    subgraph cluster_prod {
+      label="生产";
+      fontsize=10;
+      color="#e5edf5";
+      style="rounded,dashed";
+      host [label="宿主 Nginx\n:80 / :443", fillcolor="#f2f7fc"];
+      web [label="web 容器 nginx :8081\n静态 dist · SPA 回退\n/api → server:8080"];
+    }
+  }
+
+  subgraph cluster_backend {
+    label="后端：Spring Boot 3.5 + MyBatis-Plus + Flyway";
+    fontsize=12;
+    color="#d7e2ee";
+    style="rounded,filled";
+    fillcolor="#fbfdff";
+
+    web_layer [label="Web 层\nController · WebConfig\n全局异常 · Result 信封"];
+    security [label="安全\nJwtInterceptor · JwtUtil\nUserContext · 无状态 JWT"];
+    service [label="Service 层\n纯业务逻辑\nExampleService"];
+    mapper [label="持久层\nMyBatis-Plus Mapper\nEntity / DTO / VO"];
+    flyway [label="Flyway\ndb/migration/V*.sql\n启动时迁移"];
+    api_docs [label="springdoc\n/v3/api-docs\n/swagger-ui.html"];
+  }
+
+  subgraph cluster_config {
+    label="配置与数据";
+    fontsize=12;
+    color="#d9e9de";
+    style="rounded,filled";
+    fillcolor="#fbfefc";
+    yml [label="application.yml\n端口 · JWT · CORS\nHikari · MyBatis-Plus", fillcolor="#eef8f1"];
+    env [label="环境变量\nSPRING_DATASOURCE_*\n*_JWT_SECRET", fillcolor="#eef8f1"];
+    mysql [label="MySQL 8\nutf8mb4", shape=cylinder, fillcolor="#eef8f1"];
+  }
+
+  browser -> vite [label="dev :5173"];
+  browser -> host [label="prod"];
+  host -> web [label="反代"];
+  vite -> web_layer [label="/api 代理"];
+  web -> web_layer [label="/api 反代"];
+
+  web_layer -> service [label="调用"];
+  service -> mapper [label="读写"];
+  mapper -> mysql [label="JDBC"];
+  flyway -> mysql [label="迁移"];
+  security -> web_layer [style=dashed, label="拦截 /api/**"];
+  api_docs -> web_layer [style=dashed, label="扫描接口"];
+  yml -> web_layer [style=dashed, label="读取"];
+  env -> yml [style=dashed, label="覆盖默认值"];
+}

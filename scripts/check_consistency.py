@@ -3,7 +3,8 @@
 
 检查两组关系，互不替代：
 
-1. 依赖版本：references/TECH-STACK.md 的版本表 ←→ 模板 pom.xml / package.json / Dockerfile。
+1. 依赖版本：references/TECH-STACK.md 的版本表 ←→ 模板 pom.xml / package.json / Dockerfile，
+   以及 CI 工作流里写死的 JDK / Node 版本。
    只查明确登记过的条目；被 Spring Boot 父 POM 管理的依赖不尝试解析远程有效版本。
 2. 配套 skill：fetch_skills.py 的登记表、SKILL-SOURCES.json 的锁定项 ←→ 安装说明与设计规则里的清单表格。
 
@@ -60,6 +61,15 @@ FRONTEND_PACKAGES = {
 FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.MULTILINE)
 NODE_IMAGE_RE = re.compile(r"^node:(\d+)")
 JRE_IMAGE_RE = re.compile(r"eclipse-temurin:(\d+)")
+JAVA_VERSION_RE = re.compile(r"java-version:\s*['\"]?(\d+)")
+NODE_VERSION_RE = re.compile(r"node-version:\s*['\"]?(\d+)")
+
+# 工作流里写死的 toolchain 版本。模板升级时漏改这里，生成项目会在另一版 JDK / Node 上跑，
+# 而两侧的构建结果未必一致——所以让一致性检查一起盯着。
+CI_TOOLCHAIN_FILES = (
+    "templates/ci/ci.yml",
+    ".github/workflows/full-build.yml",
+)
 BACKTICK_RE = re.compile(r"`([^`]+)`")
 LINK_URL_RE = re.compile(r"\]\((https://[^)\s]+)\)")
 SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
@@ -172,6 +182,11 @@ def image_version(text: str, pattern: re.Pattern[str]) -> str:
     return ""
 
 
+def first_match(pattern: re.Pattern[str], text: str) -> str:
+    match = pattern.search(text)
+    return match.group(1) if match else ""
+
+
 def check_versions(root: Path) -> list[str]:
     checker = Checker(root)
 
@@ -239,6 +254,13 @@ def check_versions(root: Path) -> list[str]:
         compare("jdk", jre, "templates/backend/Dockerfile 的 JRE 镜像")
     if frontend_docker is not None:
         compare("node", image_version(frontend_docker, NODE_IMAGE_RE), "templates/frontend/Dockerfile")
+
+    for rel in CI_TOOLCHAIN_FILES:
+        text = checker.read(rel)
+        if text is None:
+            continue
+        compare("jdk", first_match(JAVA_VERSION_RE, text), f"{rel} 的 java-version")
+        compare("node", first_match(NODE_VERSION_RE, text), f"{rel} 的 node-version")
 
     for key, (section, name) in FRONTEND_PACKAGES.items():
         actual = ""

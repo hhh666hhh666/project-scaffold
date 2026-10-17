@@ -21,6 +21,8 @@ FIXTURE_FILES = (
     "templates/backend/Dockerfile",
     "templates/frontend/package.json",
     "templates/frontend/Dockerfile",
+    "templates/ci/ci.yml",
+    ".github/workflows/full-build.yml",
     "references/TECH-STACK.md",
     "references/SKILL-SOURCES.json",
     "README.md",
@@ -147,6 +149,22 @@ class VersionsTest(unittest.TestCase):
                  '"@tailwindcss/vite": "^4.4.0"')
             problems = cc.check_versions(root)
         self.assertTrue(any("@tailwindcss/vite" in p and "同版本发布" in p for p in problems), problems)
+
+    def test_stale_jdk_in_generated_ci_workflow_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / "templates/ci/ci.yml", "java-version: '21'", "java-version: '17'")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("templates/ci/ci.yml" in p and "jdk" in p for p in problems), problems)
+
+    def test_stale_node_in_full_build_workflow_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / ".github/workflows/full-build.yml", "node-version: 22", "node-version: 20")
+            problems = cc.check_versions(root)
+        self.assertTrue(
+            any(".github/workflows/full-build.yml" in p and "node" in p for p in problems), problems
+        )
 
     def test_missing_version_row_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

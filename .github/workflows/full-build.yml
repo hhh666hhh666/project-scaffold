@@ -1,0 +1,123 @@
+name: Full Build
+
+# 用模板真实生成一个项目，再用真 toolchain 把它构建一遍：
+# 后端 `mvn -B -ntp verify`，前端 `npm install → typecheck → build`。
+#
+# 与 Selftest 的分工：
+#   * Selftest 每次 push / PR 都跑，只做离线回归与四条守卫，十几秒出结果；
+#   * 这里要下载 Maven / npm 依赖，分钟级，所以只在**每周定时**、**手动触发**，
+#     以及改动模板或生成器的 PR 上跑——这类改动最可能弄坏生成物，值得在合并前拦一次。
+#
+# 为什么要在脚手架仓库里跑、而不是等生成项目自己的 ci.yml：
+#   生成项目的 ci.yml 要等使用者真的建出新项目并推上去才会运行；
+#   这里是在模板发布前就发现「模板写错了」的那道关。
+#
+# 已知边界：
+#   * 前端模板不带 package-lock.json（锁文件由使用者初始化时生成），所以这里必须 `npm install`，
+#     不能用 `npm ci`；也因此无法用 setup-node 的 lockfile 缓存。
+#   * `mvn verify` 目前只覆盖编译、单测与打包：骨架里还没有 *IT，
+#     Testcontainers 那条路径要等模板出现集成测试才会真正执行，届时本工作流自动覆盖，无需改动。
+#   * 不构建 Docker 镜像、不启动数据库、不部署，也不访问 GitHub Secrets。
+
+on:
+  schedule:
+    # 每周一 02:17 UTC（避开整点，减少与其他仓库定时任务撞车）。
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'templates/**'
+      - 'scripts/scaffold.py'
+      - '.github/workflows/full-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: 生成物 · 后端完整构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # 生成到 runner 的临时目录：不在仓库里产生任何文件，也不会写到别的仓库。
+      - name: 生成全开关项目
+        run: |
+          python scripts/scaffold.py --name ci-full-build --package com.example.cifullbuild \
+            --out "$RUNNER_TEMP/full-build" --with-deploy --with-ops --with-testing
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # verify 会跑 surefire（*Test）与 failsafe（*IT）。骨架阶段没有 *IT，
+      # 所以这次实际只编译、单测、打包；将来模板加了集成测试，这里无需改动即可覆盖。
+      - name: 后端 verify
+        working-directory: ${{ runner.temp }}/full-build/backend
+        run: mvn -B -ntp verify
+
+      # 判据看产物，不看退出码：jar 真的在，才算构建完成。
+      - name: 确认后端产物存在
+        working-directory: ${{ runner.temp }}/full-build/backend
+        run: ls -l target/*.jar
+
+      # 失败时把 surefire / failsafe 的文本报告打进日志，省得为了看失败原因再跑一次。
+      - name: 失败时打印测试报告
+        if: failure()
+        working-directory: ${{ runner.temp }}/full-build/backend
+        run: |
+          for dir in target/surefire-reports target/failsafe-reports; do
+            [ -d "$dir" ] || continue
+            find "$dir" -maxdepth 1 -name '*.txt' -print -exec cat {} \;
+          done
+
+  frontend:
+    name: 生成物 · 前端完整构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: 生成全开关项目
+        run: |
+          python scripts/scaffold.py --name ci-full-build --package com.example.cifullbuild \
+            --out "$RUNNER_TEMP/full-build" --with-deploy --with-ops --with-testing
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # 模板里没有 package-lock.json（那是使用者初始化时生成的），
+      # 所以这里用 npm install 现生成锁文件，而不是 npm ci。
+      - name: 安装依赖
+        working-directory: ${{ runner.temp }}/full-build/frontend
+        run: npm install --no-audit --no-fund
+
+      # vite build 走 esbuild 只剥离类型、不做检查，类型错误只由 typecheck 挡住。
+      - name: 类型检查
+        working-directory: ${{ runner.temp }}/full-build/frontend
+        run: npm run typecheck
+
+      - name: 构建
+        working-directory: ${{ runner.temp }}/full-build/frontend
+        run: npm run build
+
+      # 判据看产物：dist/index.html 真的在，才算构建完成。
+      - name: 确认前端产物存在
+        working-directory: ${{ runner.temp }}/full-build/frontend
+        run: test -f dist/index.html
