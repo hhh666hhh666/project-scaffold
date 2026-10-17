@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 # AI 工具的本地工作目录（不进发布仓库）
 .workbuddy/
+/.idea/
