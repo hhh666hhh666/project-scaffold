@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -236,7 +237,7 @@ def interactive() -> argparse.Namespace:
         backend_port=backend_port, frontend_port=frontend_port,
         web_port=8081, db_name=db_name, modules=modules,
         with_deploy=with_deploy, with_ops=with_ops, with_testing=with_testing,
-        force=False, dry_run=False,
+        force=False, dry_run=False, json=False,
     )
 
 
@@ -344,12 +345,54 @@ def generate(args: argparse.Namespace) -> int:
         return 2
 
     if not out.exists():
-        target_state = "不存在（将新建）"
+        target_code, target_state = "missing", "不存在（将新建）"
+        existing = 0
     elif any(out.iterdir()):
         existing = sum(1 for _, dst in planned if dst.exists())
+        target_code = "non_empty"
         target_state = f"非空（{existing} 个模板产物已存在，{'将覆盖' if args.force else '正式执行会拒绝'}）"
     else:
-        target_state = "空目录（将写入）"
+        existing = 0
+        target_code, target_state = "empty", "空目录（将写入）"
+
+    if args.dry_run and args.json:
+        files = [rel_posix(dst, out) for _, dst in planned] + [rel_posix(keep, out) for keep in keeps]
+        plan = {
+            "project": ctx["PROJECT_NAME"],
+            "package": ctx["PACKAGE"],
+            "out": str(out),
+            "version": ctx["VERSION"],
+            "database": ctx["DB_NAME"],
+            "ports": {
+                "backend": int(ctx["BACKEND_PORT"]),
+                "frontend": int(ctx["FRONTEND_PORT"]),
+                "web": int(ctx["WEB_PORT"]),
+            },
+            "modules": extra_modules,
+            "switches": {
+                "deploy": args.with_deploy,
+                "ops": args.with_ops,
+                "testing": args.with_testing,
+            },
+            "force": args.force,
+            "dry_run": True,
+            "target": {
+                "exists": out.exists(),
+                "state": target_code,
+                "existing_template_files": existing,
+                "would_refuse": target_code == "non_empty" and not args.force,
+            },
+            "file_count": len(files),
+            "files": files,
+        }
+        # 机器可读输出固定用 UTF-8：Windows 上重定向到文件时默认走本地编码（GBK），
+        # 中文路径会让下游按 UTF-8 解析失败。StringIO 等无 reconfigure 的流跳过即可。
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 0
 
     print(f"==> 项目：{ctx['PROJECT_NAME']}  包：{ctx['PACKAGE']}  输出：{out}")
     print(f"==> 版本：{ctx['VERSION']}  数据库：{ctx['DB_NAME']}")
@@ -415,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--with-testing", action="store_true", help="生成测试规范章节")
     parser.add_argument("--force", action="store_true", help="目标已存在时覆盖模板产物")
     parser.add_argument("--dry-run", action="store_true", help="只打印将要创建的文件，不落盘")
+    parser.add_argument("--json", action="store_true", help="与 --dry-run 配合，输出机器可读的 JSON 计划")
 
     args = parser.parse_args(argv)
 
@@ -424,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("给了参数但缺 --name；不带任何参数才会进交互问答")
         args = interactive()
 
+    if args.json and not args.dry_run:
+        parser.error("--json 只能与 --dry-run 一起使用（JSON 是生成前的计划预览，不是生成产物）")
     if not NAME_RE.match(args.name):
         parser.error("--name 必须是 kebab-case：小写字母 / 数字 / 连字符，且不能以数字或连字符开头")
     if args.package is None:

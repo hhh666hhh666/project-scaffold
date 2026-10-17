@@ -3,6 +3,8 @@ from __future__ import annotations
 import contextlib
 import io
 import itertools
+import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -109,6 +111,7 @@ class ScaffoldGenerationTest(unittest.TestCase):
             "with_testing": False,
             "force": False,
             "dry_run": False,
+            "json": False,
         }
         values.update(overrides)
         return Namespace(**values)
@@ -215,6 +218,96 @@ class ScaffoldGenerationTest(unittest.TestCase):
             with self.assertRaises(SystemExit) as error:
                 scaffold.main(["--name", "demo-app", "--out", str(out), "--backend-port", "0"])
             self.assertEqual(error.exception.code, 2)
+            self.assertFalse(out.exists())
+
+
+class ScaffoldJsonTest(unittest.TestCase):
+    def run_json(self, out: Path, *extra: str) -> dict:
+        argv = [
+            "--name", "demo-app",
+            "--package", "com.example.demoapp",
+            "--out", str(out),
+            "--dry-run", "--json",
+            *extra,
+        ]
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            self.assertEqual(scaffold.main(argv), 0)
+        return json.loads(captured.getvalue())
+
+    def test_json_dry_run_has_stable_shape_and_matches_real_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            plan = self.run_json(out, "--modules", "order", "--with-testing")
+
+            self.assertEqual(plan["project"], "demo-app")
+            self.assertEqual(plan["package"], "com.example.demoapp")
+            self.assertEqual(Path(plan["out"]), out.resolve())
+            self.assertEqual(plan["version"], "0.1.0")
+            self.assertEqual(plan["database"], "demo_app")
+            self.assertEqual(plan["ports"], {"backend": 8080, "frontend": 5173, "web": 8081})
+            self.assertEqual(plan["modules"], ["order"])
+            self.assertEqual(plan["switches"], {"deploy": False, "ops": False, "testing": True})
+            self.assertTrue(plan["dry_run"])
+            self.assertEqual(plan["target"]["state"], "missing")
+            self.assertFalse(plan["target"]["would_refuse"])
+            self.assertEqual(plan["file_count"], len(plan["files"]))
+            self.assertEqual(len(plan["files"]), len(set(plan["files"])))
+            self.assertFalse(any(f.startswith(("/", "\\")) for f in plan["files"]))
+            self.assertFalse(out.exists(), "dry-run 不能创建输出目录")
+
+            args = Namespace(
+                name="demo-app", package="com.example.demoapp", out=str(out),
+                version="0.1.0", backend_port=8080, frontend_port=5173, web_port=8081,
+                db_name="demo_app", modules="order", with_deploy=False,
+                with_ops=False, with_testing=True, force=False, dry_run=False, json=False,
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(scaffold.generate(args), 0)
+            actual = {
+                path.relative_to(out).as_posix()
+                for path in out.rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(actual, set(plan["files"]))
+
+    def test_json_target_state_reports_refusal_for_nonempty_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            out.mkdir()
+            (out / "keep.txt").write_text("user content", encoding="utf-8")
+
+            plan = self.run_json(out)
+            self.assertEqual(plan["target"]["state"], "non_empty")
+            self.assertTrue(plan["target"]["would_refuse"])
+
+            plan = self.run_json(out, "--force")
+            self.assertFalse(plan["target"]["would_refuse"])
+            self.assertTrue(plan["force"])
+
+    def test_json_requires_dry_run_and_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    scaffold.main(["--name", "demo-app", "--out", str(out), "--json"])
+            self.assertEqual(error.exception.code, 2)
+            self.assertFalse(out.exists())
+
+    def test_json_cli_subprocess_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "generated"
+            # 不设 PYTHONIOENCODING：JSON 模式内部固定 UTF-8，中文路径也要能按 UTF-8 解析。
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "scaffold.py"),
+                 "--name", "demo-app", "--out", str(out), "--dry-run", "--json"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                cwd=ROOT,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            plan = json.loads(result.stdout)
+            self.assertEqual(plan["file_count"], len(plan["files"]))
+            self.assertIn("docs/design/设计skill清单.md", plan["files"])
             self.assertFalse(out.exists())
 
 

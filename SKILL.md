@@ -41,6 +41,8 @@ python <skill>/scripts/scaffold.py --name my-app \
 先把 dry-run 的参数、目标目录状态、开关和文件清单展示给使用者，确认后才执行第二条；
 任何参数变化（尤其是 `--out`、模块、可选章节或 `--force`）都要重新预览。dry-run 只预览文件计划，
 不代表数据库、后端或前端已经跑通。
+需要把预览交给程序稳定解析时，给同一条 dry-run 命令加 `--json`（只能与 `--dry-run` 一起用）；
+JSON 只是预览，正式生成仍用同一组参数并先经使用者确认。
 
 无参数运行仍保留给人在终端里的交互问答；AI 调用一律使用显式参数模式。脚本只用 Python 标准库，
 Python 3.11+ 即可（无第三方依赖）。Windows 上一般是 `python`，Linux / macOS 一般是 `python3`；

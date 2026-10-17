@@ -87,6 +87,16 @@ python scripts/scaffold.py --name my-app \
 
 `--dry-run` 只预览生成文件，不代表数据库、后端或前端已经跑通；生成前确认不替代后续 commit、push、建远程仓库和拉配套 skill 的确认点。
 
+需要把预览交给程序解析时，加 `--json`（**只能与 `--dry-run` 一起用**）：计划以 JSON 写到 stdout，
+错误仍写 stderr，默认文本输出不变。JSON 与实际生成共用同一份文件计划，字段含参数、开关、目标目录状态和文件清单：
+
+```bash
+python scripts/scaffold.py --name my-app --package com.example.myapp \
+    --out E:/code/my-app --dry-run --json
+```
+
+JSON 只是机器可读的预览，正式生成仍使用去掉 `--json` / `--dry-run` 的同一组参数，并且同样要先经使用者确认。
+
 脚本**只用 Python 标准库**，Python 3.11+ 即可，无任何第三方依赖。
 
 ⚠️ **产物只落在 `--out` 指定的目录**，绝不在当前仓库根生成。
@@ -111,6 +121,7 @@ python scripts/scaffold.py --name my-app \
 | `--db` | 由项目名派生 | 数据库名 |
 | `--modules` | 无 | 额外业务模块（逗号分隔），只建空包骨架 |
 | `--dry-run` | 关 | 只打印将要创建的文件，不落盘 |
+| `--json` | 关 | 与 `--dry-run` 配合，把计划输出为机器可读 JSON |
 | `--force` | 关 | 目标已存在时覆盖模板产物（不删其他文件） |
 
 ---
@@ -206,6 +217,9 @@ project-scaffold/
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
 │   └── fetch_skills.py      # 配套 skill 按需拉取（本地没有才拉，不覆盖）
+├── tests/                   # 仓库自身离线回归测试（unittest，仅标准库）
+├── .github/workflows/
+│   └── selftest.yml         # 仓库级 CI：Python 回归 + 生成物守卫冒烟
 └── templates/               # 模板文件（见上文「生成什么」）
 ```
 
@@ -220,8 +234,10 @@ python -m unittest discover -s tests -v
 ```
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
-它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用、可选开关、覆盖保护和离线拉取流程；
-生成项目四条 Bash 守卫的真实运行仍以生成后临时冒烟或目标项目 CI 为准。
+它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护和离线拉取流程。
+
+`.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13），
+并在临时目录生成全开关项目、跑四条生成项目守卫。仓库级 CI **不覆盖**真实数据库、浏览器、Maven/npm 构建或外部 skill 拉取。
 
 ---
 
