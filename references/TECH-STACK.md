@@ -55,7 +55,7 @@
 | `vue-router` | Vue Router | `^5.4.0` | 同上 |
 | `pinia` | Pinia | `^3.0.4` | 同上 |
 | `typescript` | TypeScript | `~6.0.3` | 同上 |
-| `vitest` | Vitest | `^4.1.12` | 同上 |
+| `vitest` | Vitest | `^3.2.7` | 同上 |
 | `happy-dom` | happy-dom（单测 DOM 环境） | `^21.0.3` | 同上 |
 <!-- consistency:versions:end -->
 
@@ -69,6 +69,8 @@ Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json`
   不是装饰
 - 门禁有三个：typecheck、单测（`npm run test`）与 build。⚠️ `vite build` 走 esbuild 只剥离类型、不做检查，
   **类型错误只会被 typecheck 挡住**；逻辑错误由单测挡
+- ⚠️ **Vitest 固定在 3.x**：4.x 与 npm 10（Node 22 自带）组合时，`npm install` 会以
+  `Cannot read properties of null (reading 'edgesOut')` 崩溃。升级前先确认目标 Node 自带的 npm 能装上。
 - 设计体系三层见 `FRONTEND-SYSTEM.md`
 
 ## 三、Docker 与 CI
