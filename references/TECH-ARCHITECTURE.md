@@ -145,3 +145,12 @@ dot -Tsvg references/architecture-selftest.dot   -o references/architecture-self
 
 需要 [Graphviz](https://graphviz.org/)。字体使用 `Microsoft YaHei`，缺少该字体的系统由渲染器替换。
 只改文案时改 `.dot` 再重新生成，不手工编辑 SVG。
+
+改完跑一次图漂移检查：
+
+```bash
+python scripts/check_consistency.py --only diagrams
+```
+
+它核对 `.dot` 与 `.svg` 的节点 / 簇 / 边、文档引用，以及图里登记的版本、端口与 Python 矩阵；
+不检查颜色、布局和文字重叠。

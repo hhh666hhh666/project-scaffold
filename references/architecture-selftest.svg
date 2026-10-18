@@ -72,7 +72,7 @@
 <path fill="#f7f9fb" stroke="#b9c4cf" stroke-width="1.2" d="M472.55,-211.43C472.55,-211.43 347.45,-211.43 347.45,-211.43 341.45,-211.43 335.45,-205.43 335.45,-199.43 335.45,-199.43 335.45,-166.28 335.45,-166.28 335.45,-160.28 341.45,-154.28 347.45,-154.28 347.45,-154.28 472.55,-154.28 472.55,-154.28 478.55,-154.28 484.55,-160.28 484.55,-166.28 484.55,-166.28 484.55,-199.43 484.55,-199.43 484.55,-205.43 478.55,-211.43 472.55,-211.43"/>
 <text xml:space="preserve" text-anchor="middle" x="410" y="-194.25" font-family="Microsoft YaHei" font-size="10.50">check_consistency.py</text>
 <text xml:space="preserve" text-anchor="middle" x="410" y="-180" font-family="Microsoft YaHei" font-size="10.50">版本表 / skill 清单 / 锁定项</text>
-<text xml:space="preserve" text-anchor="middle" x="410" y="-165.75" font-family="Microsoft YaHei" font-size="10.50">离线只读</text>
+<text xml:space="preserve" text-anchor="middle" x="410" y="-165.75" font-family="Microsoft YaHei" font-size="10.50">图源与 SVG · 离线只读</text>
 </g>
 <!-- consjob&#45;&gt;check -->
 <g id="edge2" class="edge">

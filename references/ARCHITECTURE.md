@@ -61,3 +61,11 @@ dot -Tsvg references/architecture.dot -o references/architecture.svg
 
 需要 [Graphviz](https://graphviz.org/)。图内字体使用 `Microsoft YaHei`，在缺少该字体的系统上会由渲染器替换，
 不影响布局。只改文案时直接改 `.dot` 再重新生成，不手工编辑 SVG。
+
+改完跑一次图漂移检查，确认 `.dot`、`.svg` 与文档引用一致：
+
+```bash
+python scripts/check_consistency.py --only diagrams
+```
+
+它只比对结构、文字与登记过的事实，不检查颜色、布局和文字重叠；这些仍需人眼看图。

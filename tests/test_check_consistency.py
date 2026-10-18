@@ -329,6 +329,7 @@ class CliTest(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("依赖版本", text)
         self.assertIn("配套 skill 清单", text)
+        self.assertIn("架构图与源文件", text)
 
     def test_cli_reports_failure_and_exit_code(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -345,6 +346,14 @@ class CliTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(cc.main(["--only", "skills"]), 0)
         self.assertNotIn("依赖版本", output.getvalue())
+
+    def test_cli_only_diagrams_skips_other_groups(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(cc.main(["--only", "diagrams"]), 0)
+        text = output.getvalue()
+        self.assertIn("架构图与源文件", text)
+        self.assertNotIn("依赖版本", text)
+        self.assertNotIn("配套 skill 清单", text)
 
 
 if __name__ == "__main__":

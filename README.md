@@ -252,7 +252,8 @@ project-scaffold/
 │   └── architecture-selftest.dot / .svg  # 脚手架仓库自身
 ├── scripts/
 │   ├── scaffold.py          # 生成脚本（仅标准库）
-│   ├── check_consistency.py # 仓库自身维护检查：版本表与 skill 清单（离线、只读）
+│   ├── check_consistency.py # 仓库自身维护检查：版本表 / skill 清单 / 架构图（离线、只读）
+│   ├── check_diagrams.py    # 架构图防漂移：.dot ↔ .svg ↔ 文档引用与图内事实
 │   └── fetch_skills.py      # 配套 skill 按固定基线安装（本地没有才拉，不覆盖）
 ├── tests/                   # 仓库自身离线回归测试（unittest，仅标准库）
 ├── .github/workflows/
@@ -274,12 +275,14 @@ python scripts/check_consistency.py
 
 测试只使用 Python 标准库和隔离临时目录，不访问 GitHub、Docker、MySQL、Maven、npm 或真实用户 skill 目录。
 它覆盖生成器/拉取器的输入校验、模板渲染、dry-run 无副作用与 JSON 计划、可选开关、覆盖保护、固定提交安装、
-来源记录与过期检查、`.scaffold.json` 的参数与来源识别、Dependabot 模板的结构与生成结果，
-以及完整构建工作流的触发条件、只读权限与构建命令。
+来源记录与过期检查、`.scaffold.json` 的参数与来源识别、Dependabot 模板的结构与生成结果、
+完整构建工作流的触发条件与命令，以及架构图源文件、SVG、文档引用和图内事实的一致性。
 
 `check_consistency.py` 是另一道只读门禁：把 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表
 与模板 `pom.xml` / `package.json` / Dockerfile，以及 CI 工作流里写死的 JDK / Node 版本对齐，
 并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表和 `SKILL-SOURCES.json` 的提交格式与仓库覆盖。
+它还会调用 `check_diagrams.py`，确认每张图的 `.dot` 与 `.svg` 没有漂移、SVG 被文档引用，
+图里的版本 / 端口 / Python 矩阵与真相源一致。三组检查都可以用 `--only versions|skills|diagrams` 单独运行。
 它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
 
 `.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13）与一致性检查，

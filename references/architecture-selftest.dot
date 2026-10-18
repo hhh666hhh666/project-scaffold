@@ -70,7 +70,7 @@ digraph selftest {
     fillcolor="#fbfdff";
     scaffold [label="scaffold.py\n渲染 · dry-run · JSON\n.scaffold.json"];
     fetch [label="fetch_skills.py\n固定提交安装\n.fetched.json · --outdated"];
-    check [label="check_consistency.py\n版本表 / skill 清单 / 锁定项\n离线只读"];
+    check [label="check_consistency.py\n版本表 / skill 清单 / 锁定项\n图源与 SVG · 离线只读"];
     { rank=same; scaffold; fetch; check; }
   }
 

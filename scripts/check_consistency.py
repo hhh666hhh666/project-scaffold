@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """仓库维护检查：确认「文档里写的」与「模板 / 拉取脚本里实际的」没有漂开。
 
-检查两组关系，互不替代：
+检查三组关系，互不替代：
 
 1. 依赖版本：references/TECH-STACK.md 的版本表 ←→ 模板 pom.xml / package.json / Dockerfile，
    以及 CI 工作流里写死的 JDK / Node 版本。
    只查明确登记过的条目；被 Spring Boot 父 POM 管理的依赖不尝试解析远程有效版本。
 2. 配套 skill：fetch_skills.py 的登记表、SKILL-SOURCES.json 的锁定项 ←→ 安装说明与设计规则里的清单表格。
+3. 架构图：.dot 源文件 ←→ 渲染出的 .svg ←→ 文档引用，以及图里写死的版本 / 端口 / Python 矩阵。
+   具体规则见 check_diagrams.py。
 
 约束：
     * 仅标准库、离线、只读；不调用 git / Maven / npm。
@@ -30,6 +32,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 
 import fetch_skills
+import check_diagrams
 
 POM_NS = "{http://maven.apache.org/POM/4.0.0}"
 
@@ -427,21 +430,22 @@ def check_skills(root: Path) -> list[str]:
 # ────────────────────────────── 入口 ──────────────────────────────
 
 def check_all(root: Path = ROOT) -> list[str]:
-    return check_versions(root) + check_skills(root)
+    return check_versions(root) + check_skills(root) + check_diagrams.check_diagrams(root)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_consistency.py",
-        description="检查依赖版本与配套 skill 清单是否与模板、拉取脚本一致（离线、只读）",
+        description="检查依赖版本、配套 skill 清单与架构图是否与源文件一致（离线、只读）",
     )
-    parser.add_argument("--only", choices=["all", "versions", "skills"], default="all",
+    parser.add_argument("--only", choices=["all", "versions", "skills", "diagrams"], default="all",
                         help="只跑其中一组检查（默认 all）")
     args = parser.parse_args(argv)
 
     groups = {
         "versions": ("依赖版本", check_versions),
         "skills": ("配套 skill 清单", check_skills),
+        "diagrams": ("架构图与源文件", check_diagrams.check_diagrams),
     }
     selected = groups if args.only == "all" else {args.only: groups[args.only]}
 

@@ -46,7 +46,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 只读、离线：比对 TECH-STACK 版本表 / 四张 skill 清单表与模板、拉取脚本。
+      # 只读、离线：比对 TECH-STACK 版本表 / 四张 skill 清单表与模板、拉取脚本，
+      # 并检查架构图的 .dot / .svg / 文档引用与图内事实。
       - name: 跑一致性检查
         run: python scripts/check_consistency.py
 
