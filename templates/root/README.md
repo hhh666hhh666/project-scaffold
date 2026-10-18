@@ -69,6 +69,10 @@ cd backend && mvn -B -ntp spring-boot:run
 
 - 后端配置的默认值是**本机开发兜底**，容器里由 compose 注入环境变量覆盖；宿主机直跑用 `SPRING_DATASOURCE_*` 覆盖数据库连接。
 - JWT：正式环境必须配置随机密钥；本机未配置时会用启动时随机密钥，重启后 token 失效。固定开发密钥需在启动后端的 shell 中设置。
+- **JWT 没有吊销机制**：当前是纯无状态 token，有效期由 `${APP_ENV_PREFIX}_JWT_EXPIRE_DAYS` 控制。
+  已签发的 token 在过期前一直有效——改密码、退出登录、封禁账号都不会让它立即失效；泄露后只能等它过期，
+  或更换密钥让**所有人**掉线。确实需要「立即失效」时，再引入 token 版本号方案（代价是每个请求多一次查库），
+  并先在 `docs/adr/` 写一份 ADR 说明为什么接受这个代价。
 - `.env.example` 入库，`.env` 不入库；Compose 会读取 `.env`，Maven 直跑不会自动读取它。配置的真实默认值以 `backend/src/main/resources/application.yml` 与 `.env.example` 为准。
 
 ## 项目来源记录

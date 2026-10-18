@@ -178,6 +178,11 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     app_yml = (out / "backend/src/main/resources/application.yml").read_text(encoding="utf-8")
                     self.assertIn("include: health", app_yml)
 
+                    root_readme = (out / "README.md").read_text(encoding="utf-8")
+                    self.assertIn("JWT 没有吊销机制", root_readme)
+                    self.assertIn("token 版本号方案", root_readme)
+                    self.assertIn("docs/adr/", root_readme)
+
                     if deploy:
                         compose = (out / "docker-compose.prod.yml").read_text(encoding="utf-8")
                         self.assertIn("/actuator/health", compose)

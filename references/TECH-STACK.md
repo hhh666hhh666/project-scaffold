@@ -16,7 +16,7 @@
 
 | 不搬 | 它的业务味在哪 |
 |---|---|
-| token 版本号失效机制（`TokenVersionSource` + `user.token_version`） | 「改密码 / 退出所有设备让旧 token 立即失效」是产品决策，代价是**每个请求多一次查库**。模板保持纯无状态 JWT，需要时自己加并写 ADR |
+| token 版本号失效机制（`TokenVersionSource` + `user.token_version`） | 「改密码 / 退出所有设备让旧 token 立即失效」是产品决策，代价是**每个请求多一次查库**。模板保持纯无状态 JWT，生成项目的 README 已写明这一边界与升级路径，需要时自己加并写 ADR |
 | 账号硬删与清理 Mapper | 注销策略是产品决策 |
 | 头像 data URL 处理 | 存储策略是产品决策 |
 | 判分工具、Excel 导入导出 | 纯业务 |
