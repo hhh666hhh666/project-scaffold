@@ -48,7 +48,7 @@ digraph runtime {
       fontsize=10;
       color="#e5edf5";
       style="rounded,dashed";
-      vite [label="Vite dev server :5173\nVue Router · Pinia\nTailwind v4 · shadcn-vue\n/api → 127.0.0.1:8080"];
+      vite [label="Vite dev server :5173\nVue Router · Pinia\nToken 注入 · 401 跳转\nTailwind v4 · shadcn-vue\n/api → 127.0.0.1:8080"];
     }
 
     subgraph cluster_prod {

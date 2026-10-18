@@ -169,6 +169,9 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     integration_text = integration_test.read_text(encoding="utf-8")
                     self.assertIn('new MySQLContainer<>("mysql:8")', integration_text)
                     self.assertNotIn("${", integration_text)
+                    # 鉴权契约：缺 token = HTTP 200 + code 401，前端 401 跳转依赖它。
+                    self.assertIn("/api/example/echo", integration_text)
+                    self.assertIn('containsEntry("code", 401)', integration_text)
 
                     ci_text = (out / ".github/workflows/ci.yml").read_text(encoding="utf-8")
                     self.assertIn("integration:", ci_text)
@@ -182,6 +185,19 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertIn('"vitest"', frontend_pkg)
                     self.assertIn('"happy-dom"', frontend_pkg)
                     self.assertIn("npm run test", ci_text)
+
+                    # 登录闭环的三块机制与各自测试都必须真的落地。
+                    for rel in (
+                        "frontend/src/api/error.ts",
+                        "frontend/src/stores/auth.ts",
+                        "frontend/src/stores/auth.test.ts",
+                        "frontend/src/router/guard.ts",
+                        "frontend/src/router/guard.test.ts",
+                    ):
+                        self.assertTrue((out / rel).is_file(), rel)
+                    auth_text = (out / "frontend/src/stores/auth.ts").read_text(encoding="utf-8")
+                    self.assertIn("demo-app:token", auth_text)
+                    self.assertNotIn("${", auth_text)
 
                     app_yml = (out / "backend/src/main/resources/application.yml").read_text(encoding="utf-8")
                     self.assertIn("include: health", app_yml)

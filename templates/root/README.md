@@ -73,6 +73,10 @@ cd backend && mvn -B -ntp spring-boot:run
   已签发的 token 在过期前一直有效——改密码、退出登录、封禁账号都不会让它立即失效；泄露后只能等它过期，
   或更换密钥让**所有人**掉线。确实需要「立即失效」时，再引入 token 版本号方案（代价是每个请求多一次查库），
   并先在 `docs/adr/` 写一份 ADR 说明为什么接受这个代价。
+- **前端把 token 存在 `localStorage`**（键名带项目名前缀，避免同源多项目串号）：刷新和重开浏览器都保持登录，
+  代价是**页面一旦有 XSS，脚本就能读走 token**。这是无状态 JWT 的固有取舍；要更进一步，
+  得让后端改发 `HttpOnly` cookie 并加刷新机制。前端机制已经留好：路由写 `meta.requiresAuth`，
+  加一个名为 `login` 的页面并在登录后调用 `useAuthStore().setToken(token)` 即可。
 - `.env.example` 入库，`.env` 不入库；Compose 会读取 `.env`，Maven 直跑不会自动读取它。配置的真实默认值以 `backend/src/main/resources/application.yml` 与 `.env.example` 为准。
 
 ## 项目来源记录

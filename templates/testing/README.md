@@ -15,13 +15,16 @@
 
 ## 一句话现状
 
-**骨架阶段只有「纯逻辑」的单测**：后端 `ExampleServiceTest`（JUnit）与前端 `request.test.ts`（Vitest）各一个样例。
+**骨架阶段只有「纯逻辑」的单测**：后端 JUnit（单元 + 集成样例），前端 Vitest 覆盖请求层、登录态与路由守卫。
 
 - 后端单元层的落点：`backend/src/test/java/…/module/<模块>/service/`，**类名以 `Test` 结尾**
 - 后端接口与服务集成层的落点：同一棵 `src/test` 树，**类名以 `IT` 结尾**——靠这个名字与单元层分开
 - 前端单测的落点：与源码同目录，文件名以 `.test.ts` 结尾（如 `frontend/src/api/request.test.ts`）
 
 具体有哪些测试类，看目录本身（数量会变，文档不写数字）。
+
+其中 `ExampleApiIT` 额外锁住一条**前后端契约**：受保护接口缺 token 时返回 HTTP 200 + 信封 `code = 401`。
+前端的「未登录跳登录页」依赖它；改拦截器行为时这条会先红。
 
 ## 单元层的边界（刻意的选择）
 

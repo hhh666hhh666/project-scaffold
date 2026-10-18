@@ -64,7 +64,7 @@
 Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json` 已配好，
 `npx shadcn-vue@latest add <组件>` 即可拉源码入库）。
 
-- 骨架：`api/`（axios 封装 + 领域拆分）、`router/`、`stores/`、`views/`、`lib/`（`cn()`）、`styles/`、`types/`
+- 骨架：`api/`（axios 封装、信封解包、401 处理与领域拆分）、`router/`（含登录守卫）、`stores/`（登录态 auth）、`views/`、`lib/`（`cn()`）、`styles/`、`types/`
 - **Home 白页会真的调一次 `/api/example/hello` 并把返回值显示出来**——这是「前后端通了」的肉眼判据，
   不是装饰
 - 门禁有三个：typecheck、单测（`npm run test`）与 build。⚠️ `vite build` 走 esbuild 只剥离类型、不做检查，

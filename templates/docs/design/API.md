@@ -14,7 +14,12 @@
 
 所有接口统一返回同一个信封：`{ code, message, data, timestamp }`。
 
+- **成功与失败一律 HTTP 200**，成败只看信封里的 `code`——前端拦截器据此解包或抛错。
+  例外：网关、反向代理或容器层出错时可能返回真实的 HTTP 4xx/5xx（甚至是 HTML），
+  前端会把「不是信封」的响应当成错误处理。
 - `code = 0` 表示成功，其余见 `ResultCode` 枚举（后端 `common/ResultCode.java`）。
+- 未登录的约定是 **HTTP 200 + `code = 401`**：前端收到后清 token 并跳登录页。
+  这条契约由 `ExampleApiIT` 的鉴权用例锁住，改拦截器行为前先看它。
 - 分页接口的 `data` 是 `PageResult`：`{ list, total, page, size }`。
 - **字段名与错误码以代码为准**，本文不复制清单。
 
