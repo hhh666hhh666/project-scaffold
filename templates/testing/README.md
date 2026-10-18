@@ -15,10 +15,11 @@
 
 ## 一句话现状
 
-**骨架阶段只有单元层**：`ExampleServiceTest` 一个纯 JUnit 样例。
+**骨架阶段只有「纯逻辑」的单测**：后端 `ExampleServiceTest`（JUnit）与前端 `request.test.ts`（Vitest）各一个样例。
 
-- 单元层的落点：`backend/src/test/java/…/module/<模块>/service/`，**类名以 `Test` 结尾**
-- 接口与服务集成层的落点：同一棵 `src/test` 树，**类名以 `IT` 结尾**——靠这个名字与单元层分开
+- 后端单元层的落点：`backend/src/test/java/…/module/<模块>/service/`，**类名以 `Test` 结尾**
+- 后端接口与服务集成层的落点：同一棵 `src/test` 树，**类名以 `IT` 结尾**——靠这个名字与单元层分开
+- 前端单测的落点：与源码同目录，文件名以 `.test.ts` 结尾（如 `frontend/src/api/request.test.ts`）
 
 具体有哪些测试类，看目录本身（数量会变，文档不写数字）。
 
@@ -27,7 +28,7 @@
 ⚠️ 下面两条说的是**单元层**（`*Test`），不是整个测试系统——每层各有各的边界。
 
 - **只测静默错误**：错了不报错、只会一直错下去的那种逻辑。能通过看一眼就发现的，不值得写测试。
-- **全部是纯 JUnit 5**，不拉 Spring 上下文、不触发迁移脚本、**不需要数据库**。
+- **全部是纯 JUnit 5**（指后端这一层），不拉 Spring 上下文、不触发迁移脚本、**不需要数据库**。
   这条约束是有意为之：它让 `mvn test` 在任何机器上都能跑、不需要起任何服务。
   ⚠️ 加测试时**不要破坏这条约束**，否则 CI 会开始需要一个数据库。
 
@@ -41,7 +42,9 @@
 
 两者的分界靠**文件名**（`*Test` 归 surefire、`*IT` 归 failsafe），具体配置以 `backend/pom.xml` 为准——本文件不复制。
 
-前端（在 `frontend/` 目录下）：`npm run typecheck` 与 `npm run build`——**以 `package.json` 的 `scripts` 为准**，本文件不复制。
+前端（在 `frontend/` 目录下）：`npm run typecheck`、`npm run test` 与 `npm run build`——**以 `package.json` 的 `scripts` 为准**，本文件不复制。
+
+前端单测（Vitest）跑在 happy-dom 里，**不需要浏览器、不需要后端**；它只测纯逻辑，不挂载组件。
 
 ## CI 怎么跑
 
@@ -54,7 +57,7 @@
 只描述，不成清单——要转化为行动去 `docs/todo/`。
 
 - 接口层覆盖的是**契约与数据边界**，不是全部业务分支——穷尽分支仍是单元层的活；
-- 前端无单测、无 lint（取舍见 [系统说明](./系统说明.md)）；
+- 前端只有**纯逻辑单测**，无组件测试、无 lint（取舍见 [系统说明](./系统说明.md)）；
 - **排版的审美与层级零自动化**——只有人眼能判断「协调 / 主次」；
 - 现有单元测试不覆盖 Web 层与数据库交互；
 - 三层都不验「第三方依赖有没有已知漏洞」——那是依赖扫描那条门禁的活（若 CI 里配了）。
@@ -64,6 +67,8 @@
 - **单元测试**：`backend/src/test/java/…/module/<模块>/service/`，类名以 `Test` 结尾
 - **接口与服务集成测试**：同一棵 `src/test` 树，**类名以 `IT` 结尾**；模板自带的样例是
   `backend/src/test/java/…/module/example/ExampleApiIT.java`，可用它照抄 `@Testcontainers` + `@ServiceConnection` 的形状
+- **前端单测**：与源码同目录、文件名以 `.test.ts` 结尾；模板自带的样例是
+  `frontend/src/api/request.test.ts`，可用它照抄「假适配器替掉网络」的写法
 - **端到端**：本模板不提供（见上面边界声明）
 
 ⚠️ 保持「纯 JUnit 测试不引 Spring 上下文」这条约束。某个逻辑确实需要数据库才能测时，**按 [系统说明](./系统说明.md) 里「改动 → 补哪层」的表**决定进哪一层，别顺手让 `mvn test` 背上起服务的成本——那是一次真正的取舍。

@@ -47,7 +47,7 @@ digraph selftest {
     fillcolor="#fffafa";
     fullgen [label="生成全开关项目\n到 runner 临时目录", fillcolor="#fbebeb"];
     fullback [label="后端\nmvn -B -ntp verify\n确认 jar 产物", fillcolor="#fbebeb"];
-    fullfront [label="前端\nnpm install\ntypecheck · build\n确认 dist 产物", fillcolor="#fbebeb"];
+    fullfront [label="前端\nnpm install\ntypecheck · test · build\n确认 dist 产物", fillcolor="#fbebeb"];
     { rank=same; fullback; fullfront; }
   }
 

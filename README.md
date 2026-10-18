@@ -194,9 +194,9 @@ bash scripts/check-version.sh        # 版本字符串与 git tag 不一致 → 
 | # | 阶段 | 步骤 | 过线判据 |
 |---|------|------|----------|
 | ① | 入库基线 | `git init` → `git add -A` → 跑四条守卫 → 首次提交 | 四条守卫全绿 |
-| ② | 依赖就位 | `mvn -B -ntp test`；`npm install && npm run typecheck` | 后端单测通过、前端无类型错误、锁文件入库 |
+| ② | 依赖就位 | `mvn -B -ntp test`；`npm install && npm run typecheck && npm run test` | 后端单测通过、前端无类型错误、样例测试通过、锁文件入库 |
 | ③ | 本地跑通 | 选择 Docker MySQL 或专用外部 MySQL → 配本地值 → 起后端 → 起前端 | 有 MySQL 时后端 200、**首页那行字来自后端**；没有 MySQL 时明确记录联通项受阻 |
-| ④ | 门禁复核 | 守卫 + typecheck + `mvn test` 再跑一遍 | 全绿 |
+| ④ | 门禁复核 | 守卫 + typecheck + `npm run test` + `mvn test` 再跑一遍 | 全绿 |
 | ⑤ | 入库远程 ⛔ | `gh repo create` → push → 盯 CI | **CI 首绿**（红着不算完） |
 | ⑥ | 完成衔接 | 检查配套 skill → 提示手动触发需求打磨 | 提示已给出 |
 
@@ -291,7 +291,7 @@ python scripts/check_consistency.py
 
 `.github/workflows/full-build.yml` 是另一层门禁：每周定时、手动触发，以及改动 `templates/**` 或
 `scripts/scaffold.py` 的 PR 上，用模板真实生成一个项目，再跑后端 `mvn -B -ntp verify`（含模板自带的
-Testcontainers 集成测试）和前端 `npm install → typecheck → build`，并确认 jar 与 `dist/index.html`
+Testcontainers 集成测试）和前端 `npm install → typecheck → test → build`，并确认 jar 与 `dist/index.html`
 真的存在、failsafe 报告确实产生。它需要网络与真实 toolchain，是分钟级任务，所以不挂在每次 push 上。
 模板不带 `package-lock.json`，因此这里用 `npm install` 而不是 `npm ci`。
 
@@ -303,7 +303,7 @@ Testcontainers 集成测试）和前端 `npm install → typecheck → build`，
 ## 环境要求
 
 生成脚本本身只需要 **Python 3.11+**。生成项目的基础门禁需要 **JDK 21+**、**Maven 3.9+**、
-**Node.js 22+** 和 **npm**；后端纯单测与前端 typecheck/build 不需要 Docker 或数据库。
+**Node.js 22+** 和 **npm**；后端纯单测与前端 typecheck/test/build 不需要 Docker 或数据库。
 
 要跑真实后端并验证前后端联通，需要一个可访问的 **MySQL 8**，可以用 Docker Compose 启动本机库，
 也可以使用专用外部 MySQL。Testcontainers 集成测试、镜像冒烟与发布流程仍需要容器运行环境。

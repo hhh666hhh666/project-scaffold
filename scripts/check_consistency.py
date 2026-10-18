@@ -44,7 +44,7 @@ DESIGN_SKILLS_MARKER = "consistency:design-skills"
 REQUIRED_VERSION_IDS = frozenset({
     "spring-boot", "mybatis-plus", "mapstruct", "lombok-mapstruct-binding",
     "jjwt", "springdoc", "jdk", "node", "mysql", "vue", "vite", "tailwindcss",
-    "vue-router", "pinia", "typescript",
+    "vue-router", "pinia", "typescript", "vitest", "happy-dom",
 })
 
 POM_PROPERTIES = {
@@ -62,6 +62,8 @@ FRONTEND_PACKAGES = {
     "vue-router": ("dependencies", "vue-router"),
     "pinia": ("dependencies", "pinia"),
     "typescript": ("devDependencies", "typescript"),
+    "vitest": ("devDependencies", "vitest"),
+    "happy-dom": ("devDependencies", "happy-dom"),
 }
 
 FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.MULTILINE)

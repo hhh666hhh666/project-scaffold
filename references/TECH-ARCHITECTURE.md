@@ -84,6 +84,7 @@
 | `mvn test` | `*Test` 纯单元测试（surefire） | 不需要数据库、不需要 Docker |
 | `mvn verify` | 追加 `*IT` 集成测试（failsafe） | Testcontainers + 真 MySQL，需要容器环境 |
 | `npm run typecheck` | `vue-tsc --noEmit` | Node 与已安装依赖 |
+| `npm run test` | Vitest 跑 `src/**/*.test.ts` 纯逻辑单测 | Node 与已安装依赖；不需要浏览器、后端或数据库 |
 | `npm run build` | Vite 打包 | ⚠️ esbuild 只剥离类型、不做检查；类型错误只由 typecheck 挡住 |
 
 `surefire` 不认 `*IT` 这个命名，所以 `mvn test` 刻意保持轻量；接口与落库测试显式走 `mvn verify`。
@@ -100,7 +101,7 @@
 ### CI 与发布
 
 - `ci.yml`（总是生成）：push / PR 到 master，跑文档守卫、后端 `mvn test`、后端 `mvn verify`（Testcontainers 集成测试）、
-  前端 `npm ci → typecheck → build`。
+  前端 `npm ci → typecheck → test → build`。
 - `release.yml`（`--with-deploy` 才生成）：推 `v*` tag 后依次做版本门禁 → 一次性 `mysql:8` 重放迁移
   → 构建并推送两个镜像 → SSH 部署；**不推 `latest`**，回滚落点是版本 tag。
   部署脚本在替换容器前会先调用 `backup-mysql.sh`，备份失败即中止；该备份是本机备份，不防磁盘损坏。
@@ -129,7 +130,7 @@
   - 在临时目录生成全开关项目，再跑生成项目的四条守卫。
 - **full-build.yml** 两个 job（每周定时 · 手动 · 模板或生成器改动的 PR）：
   - 后端：生成全开关项目 → `mvn -B -ntp verify` → 确认 jar；
-  - 前端：生成同一份项目 → `npm install`（模板没有锁文件，不能用 `npm ci`）→ typecheck → build → 确认 `dist/index.html`。
+  - 前端：生成同一份项目 → `npm install`（模板没有锁文件，不能用 `npm ci`）→ typecheck → test → build → 确认 `dist/index.html`。
   - 这是「模板写错了」在发布前被拦住的关卡：生成项目自己的 `ci.yml` 要等使用者建仓推送后才运行。
     它需要真实 toolchain 与网络，分钟级，所以不挂在每次 push 上。
 

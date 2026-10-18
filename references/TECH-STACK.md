@@ -55,6 +55,8 @@
 | `vue-router` | Vue Router | `^5.4.0` | 同上 |
 | `pinia` | Pinia | `^3.0.4` | 同上 |
 | `typescript` | TypeScript | `~6.0.3` | 同上 |
+| `vitest` | Vitest | `^4.1.12` | 同上 |
+| `happy-dom` | happy-dom（单测 DOM 环境） | `^21.0.3` | 同上 |
 <!-- consistency:versions:end -->
 
 ## 二、前端（`frontend/`）
@@ -65,8 +67,8 @@ Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json`
 - 骨架：`api/`（axios 封装 + 领域拆分）、`router/`、`stores/`、`views/`、`lib/`（`cn()`）、`styles/`、`types/`
 - **Home 白页会真的调一次 `/api/example/hello` 并把返回值显示出来**——这是「前后端通了」的肉眼判据，
   不是装饰
-- 门禁只有两个：typecheck 与 build。⚠️ `vite build` 走 esbuild 只剥离类型、不做检查，
-  **类型错误只会被 typecheck 挡住**
+- 门禁有三个：typecheck、单测（`npm run test`）与 build。⚠️ `vite build` 走 esbuild 只剥离类型、不做检查，
+  **类型错误只会被 typecheck 挡住**；逻辑错误由单测挡
 - 设计体系三层见 `FRONTEND-SYSTEM.md`
 
 ## 三、Docker 与 CI

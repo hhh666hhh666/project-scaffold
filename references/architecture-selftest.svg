@@ -143,18 +143,18 @@
 <!-- fullfront -->
 <g id="node6" class="node">
 <title>fullfront</title>
-<path fill="#fbebeb" stroke="#b9c4cf" stroke-width="1.2" d="M1017.55,-218.55C1017.55,-218.55 934.45,-218.55 934.45,-218.55 928.45,-218.55 922.45,-212.55 922.45,-206.55 922.45,-206.55 922.45,-159.15 922.45,-159.15 922.45,-153.15 928.45,-147.15 934.45,-147.15 934.45,-147.15 1017.55,-147.15 1017.55,-147.15 1023.55,-147.15 1029.55,-153.15 1029.55,-159.15 1029.55,-159.15 1029.55,-206.55 1029.55,-206.55 1029.55,-212.55 1023.55,-218.55 1017.55,-218.55"/>
-<text xml:space="preserve" text-anchor="middle" x="976" y="-201.38" font-family="Microsoft YaHei" font-size="10.50">前端</text>
-<text xml:space="preserve" text-anchor="middle" x="976" y="-187.13" font-family="Microsoft YaHei" font-size="10.50">npm install</text>
-<text xml:space="preserve" text-anchor="middle" x="976" y="-172.88" font-family="Microsoft YaHei" font-size="10.50">typecheck · build</text>
-<text xml:space="preserve" text-anchor="middle" x="976" y="-158.63" font-family="Microsoft YaHei" font-size="10.50">确认 dist 产物</text>
+<path fill="#fbebeb" stroke="#b9c4cf" stroke-width="1.2" d="M1043.67,-218.55C1043.67,-218.55 934.33,-218.55 934.33,-218.55 928.33,-218.55 922.33,-212.55 922.33,-206.55 922.33,-206.55 922.33,-159.15 922.33,-159.15 922.33,-153.15 928.33,-147.15 934.33,-147.15 934.33,-147.15 1043.67,-147.15 1043.67,-147.15 1049.67,-147.15 1055.67,-153.15 1055.67,-159.15 1055.67,-159.15 1055.67,-206.55 1055.67,-206.55 1055.67,-212.55 1049.67,-218.55 1043.67,-218.55"/>
+<text xml:space="preserve" text-anchor="middle" x="989" y="-201.38" font-family="Microsoft YaHei" font-size="10.50">前端</text>
+<text xml:space="preserve" text-anchor="middle" x="989" y="-187.13" font-family="Microsoft YaHei" font-size="10.50">npm install</text>
+<text xml:space="preserve" text-anchor="middle" x="989" y="-172.88" font-family="Microsoft YaHei" font-size="10.50">typecheck · test · build</text>
+<text xml:space="preserve" text-anchor="middle" x="989" y="-158.63" font-family="Microsoft YaHei" font-size="10.50">确认 dist 产物</text>
 </g>
 <!-- fullgen&#45;&gt;fullfront -->
 <g id="edge6" class="edge">
 <title>fullgen&#45;&gt;fullfront</title>
-<path fill="none" stroke="#7d8a97" stroke-width="1.1" d="M860.63,-306.4C880.6,-285.18 912.09,-251.73 937.13,-225.14"/>
-<polygon fill="#7d8a97" stroke="#7d8a97" stroke-width="1.1" points="938.86,-226.87 941.88,-220.09 935.3,-223.51 938.86,-226.87"/>
-<text xml:space="preserve" text-anchor="middle" x="928" y="-256.4" font-family="Microsoft YaHei" font-size="9.50">生成前端</text>
+<path fill="none" stroke="#7d8a97" stroke-width="1.1" d="M862.52,-306.4C884.51,-285.09 919.23,-251.45 946.74,-224.8"/>
+<polygon fill="#7d8a97" stroke="#7d8a97" stroke-width="1.1" points="948.33,-226.67 951.65,-220.04 944.92,-223.15 948.33,-226.67"/>
+<text xml:space="preserve" text-anchor="middle" x="934.5" y="-256.4" font-family="Microsoft YaHei" font-size="9.50">生成前端</text>
 </g>
 <!-- fullgen&#45;&gt;scaffold -->
 <g id="edge7" class="edge">

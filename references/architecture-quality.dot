@@ -34,7 +34,7 @@ digraph quality {
     style="rounded,filled";
     fillcolor="#fbfdff";
 
-    fe [label="前端门禁\nnpm ci → vue-tsc --noEmit → vite build"];
+    fe [label="前端门禁\nnpm ci → typecheck\n→ test → build"];
     be [label="后端单元测试\nmvn test\n只跑 *Test，不启动容器"];
     it [label="后端集成测试\nmvn verify\n*IT + Testcontainers + MySQL 8", fillcolor="#fdf7ee"];
     guards [label="四条机械守卫\n链接 · 待办归档\n模块测试 · 版本对齐"];
@@ -49,7 +49,7 @@ digraph quality {
     style="rounded,filled";
     fillcolor="#fbfdff";
 
-    ci [label="ci.yml\npush / PR 到 master\n文档守卫 · 后端单测\n集成测试 · 前端构建", fillcolor="#eef8f1"];
+    ci [label="ci.yml\npush / PR 到 master\n文档守卫 · 后端单测\n集成测试 · 前端门禁", fillcolor="#eef8f1"];
     release [label="release.yml（可选）\nv* tag 触发\n版本门禁 → 迁移验证 → 镜像 → 部署", fillcolor="#eef8f1"];
     dep [label="dependabot.yml\n每周 Maven / npm / Actions\n升级 PR，不自动合并", fillcolor="#eef8f1"];
   }

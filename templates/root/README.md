@@ -48,7 +48,7 @@ cd backend && mvn -B -ntp spring-boot:run
 
 ### 暂时没有 MySQL
 
-仍可运行四条守卫、后端纯单测、前端 `npm run typecheck` 和 `npm run build`。
+仍可运行四条守卫、后端纯单测、前端 `npm run typecheck`、`npm run test` 和 `npm run build`。
 数据库迁移、后端启动、健康端点及前后端页面联通必须记录为“未验证 / 受阻”，
 不能用 H2、关闭 Flyway 或假造接口返回来宣称本地全链路已跑通。获得 Docker 或专用 MySQL 后，
 再按上面任一路径补做真实联通验收。
