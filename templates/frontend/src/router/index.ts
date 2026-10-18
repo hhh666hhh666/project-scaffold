@@ -19,6 +19,8 @@ export function createAppRouter(history: RouterHistory = createWebHistory()): Ro
   const router = createRouter({
     history,
     routes: [
+      // 新增页面用按需加载：component: () => import('@/views/XxxView.vue')。
+      // 首页保持同步导入——它是首屏必用页面，拆包只会多一次网络往返。
       { path: '/', name: 'home', component: HomeView, meta: { title: '首页' } }
     ]
   })

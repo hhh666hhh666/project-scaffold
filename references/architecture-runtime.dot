@@ -57,7 +57,7 @@ digraph runtime {
       color="#e5edf5";
       style="rounded,dashed";
       host [label="宿主 Nginx\n:80 / :443", fillcolor="#f2f7fc"];
-      web [label="web 容器 nginx :8081\n静态 dist · SPA 回退\n/api → server:8080"];
+      web [label="web 容器 nginx :8081\n静态 dist · SPA 回退\ngzip · 缓存头 · 安全头\n/api → server:8080"];
     }
   }
 

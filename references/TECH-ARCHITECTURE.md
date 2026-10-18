@@ -49,7 +49,8 @@
 ```
 
 - web 容器只绑 `127.0.0.1:${WEB_PORT}`，对外入口交给宿主反代；server 容器不发布端口。
-- 前端镜像用 `node:22-slim` 构建、`nginx:alpine` 运行；后端镜像用 Maven 构建、Temurin JRE 运行。
+- 前端镜像用 `node:22-slim` 构建、`nginx:1.30-alpine` 运行；后端镜像用 Maven 构建、Temurin JRE 运行。
+  web 容器的 nginx 负责：gzip、`/assets/` 长期缓存与真 404、`index.html` 不缓存、SPA 回退、安全响应头。
 - `docker-compose.prod.yml` 里没有 `build:`：镜像只由 CI 构建推送，服务器只拉取。
 
 ### 后端分层
