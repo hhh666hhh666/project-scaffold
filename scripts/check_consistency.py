@@ -43,7 +43,8 @@ DESIGN_SKILLS_MARKER = "consistency:design-skills"
 # 版本表里必须出现的标识。多一个、少一个都算不一致——防止改名或误删后检查静默变弱。
 REQUIRED_VERSION_IDS = frozenset({
     "spring-boot", "mybatis-plus", "mapstruct", "lombok-mapstruct-binding",
-    "jjwt", "springdoc", "jdk", "node", "mysql", "vue", "vite", "tailwindcss", "typescript",
+    "jjwt", "springdoc", "jdk", "node", "mysql", "vue", "vite", "tailwindcss",
+    "vue-router", "pinia", "typescript",
 })
 
 POM_PROPERTIES = {
@@ -58,6 +59,8 @@ FRONTEND_PACKAGES = {
     "vue": ("dependencies", "vue"),
     "vite": ("devDependencies", "vite"),
     "tailwindcss": ("devDependencies", "tailwindcss"),
+    "vue-router": ("dependencies", "vue-router"),
+    "pinia": ("dependencies", "pinia"),
     "typescript": ("devDependencies", "typescript"),
 }
 

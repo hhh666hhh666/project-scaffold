@@ -142,7 +142,7 @@ class VersionsTest(unittest.TestCase):
     def test_frontend_range_change_without_doc_update_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = clone_root(tmp)
-            edit(root / "templates/frontend/package.json", '"vue": "^3.5.0"', '"vue": "^3.6.0"')
+            edit(root / "templates/frontend/package.json", '"vue": "^3.5.44"', '"vue": "^3.6.0"')
             problems = cc.check_versions(root)
         self.assertTrue(any("vue" in p and "^3.6.0" in p for p in problems), problems)
 
@@ -190,6 +190,20 @@ class VersionsTest(unittest.TestCase):
             drop_table_row(root / "references/TECH-STACK.md", cc.VERSIONS_MARKER, "`mysql`")
             problems = cc.check_versions(root)
         self.assertTrue(any("版本表缺少登记项：mysql" in p for p in problems), problems)
+
+    def test_stale_pinia_in_generated_frontend_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / "templates/frontend/package.json", '"pinia": "^3.0.4"', '"pinia": "^4.0.0"')
+            problems = cc.check_versions(root)
+        self.assertTrue(any("pinia" in p and "^4.0.0" in p for p in problems), problems)
+
+    def test_missing_vue_router_row_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            drop_table_row(root / "references/TECH-STACK.md", cc.VERSIONS_MARKER, "`vue-router`")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("版本表缺少登记项：vue-router" in p for p in problems), problems)
 
     def test_missing_version_row_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
