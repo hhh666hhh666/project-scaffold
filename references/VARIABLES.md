@@ -110,8 +110,7 @@ templates/scripts/${LINK_CHECK_SCRIPT}
 | `ops/` | `docs/operations/` | `--with-ops` |
 | `deploy/` | 仓库根（内含 `.github/`、`scripts/`、`deploy/` 三段） | `--with-deploy` |
 
-生成后恒定存在的目录（空的补 `.gitkeep`）：`docs/adr`、`docs/design`、`docs/development`、
-`docs/operations`、`docs/requirements`、`docs/testing`、`docs/todo/archive`、`docs/worklog`。
+生成后恒定存在的目录由 `scripts/scaffold.py` 的 `EMPTY_DIRS` 定义（空目录补 `.gitkeep`），本文件不复述。
 
 `.github/dependabot.yml` 随 `root/` 一起生成，不需要开关；它是固定的升级提案配置，不含变量。
 

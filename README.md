@@ -17,10 +17,11 @@
 ![project-scaffold 架构](references/architecture.svg)
 
 四层：**使用入口 → 仓库四类能力 → 产出 → 外部系统**。逐层说明、关键边界与重绘方法见
-[references/ARCHITECTURE.md](references/ARCHITECTURE.md)。
+[references/ARCHITECTURE.md](references/ARCHITECTURE.md)（流程架构：能力怎么分层）。
 
-技术架构另分三张图：生成项目的**运行时**（前后端与数据库）、**质量与交付**（测试 / 守卫 / CI / 发布）、
-以及**脚手架仓库自身**（脚本 / 离线测试 / selftest），见 [references/TECH-ARCHITECTURE.md](references/TECH-ARCHITECTURE.md)。
+技术栈另有三张图：生成项目的**运行时**（前后端与数据库）、**质量与交付**（测试 / 守卫 / CI / 发布）、
+以及**脚手架仓库自身**（脚本 / 离线测试 / selftest），见 [references/TECH-ARCHITECTURE.md](references/TECH-ARCHITECTURE.md)
+（技术栈架构：运行时、质量与交付）。
 
 ---
 
@@ -160,8 +161,7 @@ JSON 只是机器可读的预览，正式生成仍使用去掉 `--json` / `--dry
 | `ops/` | `docs/operations/` | `--with-ops` |
 | `deploy/` | 仓库根（内含 `.github/`、`scripts/`、`deploy/` 三段） | `--with-deploy` |
 
-生成后恒定存在的目录（空的补 `.gitkeep`）：`docs/adr`、`docs/design`、`docs/development`、
-`docs/operations`、`docs/requirements`、`docs/testing`、`docs/todo/archive`、`docs/worklog`。
+生成后恒定存在的目录由 `scripts/scaffold.py` 的 `EMPTY_DIRS` 定义（空目录补 `.gitkeep`），本文件不复述。
 
 ### 生成记录
 
@@ -189,21 +189,11 @@ bash scripts/check-version.sh        # 版本字符串与 git tag 不一致 → 
 
 ## 初始化剧本：从「生成完」到「CI 首绿」
 
-生成完不停拍。先完成上面的 dry-run 总览确认，再照 `references/POST-SCAFFOLD.md` 走六阶段：
+生成完不停拍：按 [`references/POST-SCAFFOLD.md`](references/POST-SCAFFOLD.md) 走六阶段——
+**入库基线 → 依赖就位 → 本地跑通 → 门禁复核 → 入库远程 → 完成衔接**。
 
-| # | 阶段 | 步骤 | 过线判据 |
-|---|------|------|----------|
-| ① | 入库基线 | `git init` → `git add -A` → 跑四条守卫 → 首次提交 | 四条守卫全绿 |
-| ② | 依赖就位 | `mvn -B -ntp test`；`npm install && npm run typecheck && npm run test` | 后端单测通过、前端无类型错误、样例测试通过、锁文件入库 |
-| ③ | 本地跑通 | 选择 Docker MySQL 或专用外部 MySQL → 配本地值 → 起后端 → 起前端 | 有 MySQL 时后端 200、**首页那行字来自后端**；没有 MySQL 时明确记录联通项受阻 |
-| ④ | 门禁复核 | 守卫 + typecheck + `npm run test` + `mvn test` 再跑一遍 | 全绿 |
-| ⑤ | 入库远程 ⛔ | `gh repo create` → push → 盯 CI | **CI 首绿**（红着不算完） |
-| ⑥ | 完成衔接 | 检查配套 skill → 提示手动触发需求打磨 | 提示已给出 |
-
+每步的命令、过线判据、必须停下确认的三类动作、常见坑与断开后的续跑方式都在那份剧本里，本文件不复述。
 判据一律「**看产物**」，不看退出码。
-
-AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git commit` / `git push`（同一阶段可一次确认）、
-⑤ 建远程仓库（问仓库名与公开/私有）、⑥ 拉取本地没有的配套 skill。
 
 ---
 
@@ -245,10 +235,10 @@ project-scaffold/
 │   ├── SKILL-SOURCES.json   # 配套 skill 的固定提交与监测分支
 │   ├── SKILL-FETCHING.md    # 固定基线安装、来源记录与过期检查的规则
 │   ├── SCAFFOLD-METADATA.md # 生成记录 .scaffold.json 的语义与边界
-│   ├── ARCHITECTURE.md      # 流程架构图与四层说明
+│   ├── ARCHITECTURE.md      # 流程架构：能力分层与四层说明
 │   ├── architecture.dot     # 流程架构图的 Graphviz 源文件
 │   ├── architecture.svg     # 流程架构图（由 .dot 生成）
-│   ├── TECH-ARCHITECTURE.md # 技术架构：运行时 / 质量与交付 / 仓库自身
+│   ├── TECH-ARCHITECTURE.md # 技术栈架构：运行时 / 质量与交付 / 仓库自身
 │   ├── architecture-runtime.dot / .svg   # 生成项目运行时
 │   ├── architecture-quality.dot / .svg   # 测试 / 守卫 / CI / 发布
 │   └── architecture-selftest.dot / .svg  # 脚手架仓库自身
@@ -284,17 +274,12 @@ python scripts/check_consistency.py
 与模板 `pom.xml` / `package.json` / Dockerfile，以及 CI 工作流里写死的 JDK / Node 版本对齐，
 并核对四张配套 skill 清单表、`fetch_skills.py` 的登记表和 `SKILL-SOURCES.json` 的提交格式与仓库覆盖。
 它还会调用 `check_diagrams.py`，确认每张图的 `.dot` 与 `.svg` 没有漂移、SVG 被文档引用，
-图里的版本 / 端口 / Python 矩阵与真相源一致。三组检查都可以用 `--only versions|skills|diagrams` 单独运行。
+图里的版本 / 端口 / Python 矩阵与真相源一致；并检查文档卫生（模板里没有具体日期、ADR 编号与测试数量）
+与文档地图、目录树的双向对齐。四组检查都可以用 `--only versions|skills|diagrams|docs` 单独运行。
 它不联网、不调用 Maven/npm，也不解析依赖的远程有效版本。
 
-`.github/workflows/selftest.yml` 在 GitHub 上跑同一套测试（Python 3.11 / 3.12 / 3.13）与一致性检查，
-并在临时目录生成全开关项目、跑四条生成项目守卫；一致性检查也会核对 CI 里写死的 JDK / Node 版本。
-
-`.github/workflows/full-build.yml` 是另一层门禁：每周定时、手动触发，以及改动 `templates/**` 或
-`scripts/scaffold.py` 的 PR 上，用模板真实生成一个项目，再跑后端 `mvn -B -ntp verify`（含模板自带的
-Testcontainers 集成测试）和前端 `npm install → typecheck → test → build`，并确认 jar 与 `dist/index.html`
-真的存在、failsafe 报告确实产生。它需要网络与真实 toolchain，是分钟级任务，所以不挂在每次 push 上。
-模板不带 `package-lock.json`，因此这里用 `npm install` 而不是 `npm ci`。
+两层 CI（`selftest.yml` 与 `full-build.yml`）的 job 划分、触发条件与各自覆盖什么，
+见 [references/TECH-ARCHITECTURE.md](references/TECH-ARCHITECTURE.md#三脚手架仓库自身)，本文件不复述。
 
 两层 CI 都**不覆盖**真实数据库、浏览器、外部 skill 拉取，也不验证 Dependabot 服务的实际开 PR 行为；
 真实固定提交安装仍只做人工验收。

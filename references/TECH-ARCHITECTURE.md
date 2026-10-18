@@ -1,6 +1,6 @@
-# 技术架构
+# 技术栈架构：运行时、质量与交付
 
-流程架构见 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。本文件拆开技术栈，分三张图：
+能力分层与使用流程见 [`ARCHITECTURE.md`](./ARCHITECTURE.md)。本文件拆开技术栈，分三张图：
 
 | 图 | 回答什么 |
 |---|---|
@@ -138,7 +138,8 @@
   （`test_full_build_workflow.py`），守住触发条件、只读权限与构建命令不被误改。
 - **selftest.yml** 三个 job（每次 push / PR）：
   - Python 3.11 / 3.12 / 3.13 跑全部 unittest；
-  - `check_consistency.py` 校验版本表、四张 skill 清单、锁定清单，以及 CI 里写死的 JDK / Node 版本；
+  - `check_consistency.py` 校验版本表、四张 skill 清单、锁定清单，CI 里写死的 JDK / Node 版本，
+    以及文档卫生与文档地图 / 目录树的双向对齐；
   - 在临时目录生成全开关项目，再跑生成项目的四条守卫。
 - **full-build.yml** 两个 job（每周定时 · 手动 · 模板或生成器改动的 PR）：
   - 后端：生成全开关项目 → `mvn -B -ntp verify` → 确认 jar；

@@ -1,9 +1,10 @@
-# 架构图
+# 流程架构：能力怎么分层
 
 ![project-scaffold 架构](./architecture.svg)
 
 源文件是 [`architecture.dot`](./architecture.dot)，SVG 由 Graphviz 生成；改了脚本职责或模板目录后，
-图与代码一起更新。前后端、测试、CI 与发布等技术栈见 [`TECH-ARCHITECTURE.md`](./TECH-ARCHITECTURE.md)。
+图与代码一起更新。本文件讲**流程与能力分层**；运行时、测试、CI 与发布等技术栈见
+[`TECH-ARCHITECTURE.md`](./TECH-ARCHITECTURE.md)。
 
 ## 四层怎么读
 
