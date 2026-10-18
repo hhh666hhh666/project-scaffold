@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """仓库维护检查：确认「文档里写的」与「模板 / 拉取脚本里实际的」没有漂开。
 
-检查三组关系，互不替代：
+检查四组关系，互不替代：
 
 1. 依赖版本：references/TECH-STACK.md 的版本表 ←→ 模板 pom.xml / package.json / Dockerfile，
    以及 CI 工作流里写死的 JDK / Node 版本。
@@ -9,6 +9,8 @@
 2. 配套 skill：fetch_skills.py 的登记表、SKILL-SOURCES.json 的锁定项 ←→ 安装说明与设计规则里的清单表格。
 3. 架构图：.dot 源文件 ←→ 渲染出的 .svg ←→ 文档引用，以及图里写死的版本 / 端口 / Python 矩阵。
    具体规则见 check_diagrams.py。
+4. 文档卫生：模板正文不得夹带具体日期、ADR 编号与测试数量（这些会随项目变化，属于自传式叙述）；
+   `templates/docs/README.md` 的文档地图与 `templates/docs/目录结构.md` 的两棵树双向对齐。
 
 约束：
     * 仅标准库、离线、只读；不调用 git / Maven / npm。
@@ -94,6 +96,19 @@ CI_TOOLCHAIN_FILES = (
 BACKTICK_RE = re.compile(r"`([^`]+)`")
 LINK_URL_RE = re.compile(r"\]\((https://[^)\s]+)\)")
 SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
+
+# 文档卫生：模板正文里不该出现的派生事实。
+CONCRETE_DATE_RE = re.compile(r"20\d{2}-\d{2}-\d{2}")
+ADR_NUMBER_RE = re.compile(r"ADR\s*-?\s*\d{4}")
+ADR_FILE_RE = re.compile(r"^\d{4}-.+\.md$")
+TEST_COUNT_RE = re.compile(r"\d+\s*个(?:测试|用例|测试类|断言)")
+
+DOCS_MAP_FILE = "templates/docs/README.md"
+DOCS_TREE_FILE = "templates/docs/目录结构.md"
+MD_LINK_RE = re.compile(r"\]\(([^)#\s]+)")
+TREE_LINE_RE = re.compile(r"^((?:│   |    )*)(?:├── |└── )(\S+)")
+TREE_BLOCK_RE = re.compile(r"```\n(.*?)```", re.DOTALL)
+TREE_INDENT = 4
 
 SOURCE_TABLES = (
     ("README.md", SOURCE_SKILLS_MARKER),
@@ -467,10 +482,176 @@ def check_skills(root: Path) -> list[str]:
     return checker.problems
 
 
+# ────────────────────────────── 文档卫生与地图/树 ──────────────────────────────
+
+def template_texts(root: Path) -> list[tuple[str, str]]:
+    """模板树的全部 UTF-8 文本；二进制文件静默跳过。"""
+    texts: list[tuple[str, str]] = []
+    base = root / "templates"
+    if not base.is_dir():
+        return texts
+    for path in sorted(base.rglob("*")):
+        if not path.is_file():
+            continue
+        try:
+            texts.append((path.relative_to(root).as_posix(), path.read_text(encoding="utf-8")))
+        except UnicodeDecodeError:
+            continue
+    return texts
+
+
+def doc_texts(root: Path) -> list[tuple[str, str]]:
+    """模板正文 + 脚手架自己的说明文档（README / SKILL / references）。"""
+    texts = template_texts(root)
+    for rel in ("README.md", "SKILL.md"):
+        path = root / rel
+        if path.is_file():
+            texts.append((rel, path.read_text(encoding="utf-8")))
+    refs = root / "references"
+    if refs.is_dir():
+        for path in sorted(refs.glob("*.md")):
+            try:
+                texts.append((path.relative_to(root).as_posix(), path.read_text(encoding="utf-8")))
+            except UnicodeDecodeError:
+                continue
+    return texts
+
+
+def check_docs(root: Path) -> list[str]:
+    checker = Checker(root)
+
+    # 1. 派生事实不得写进正文。
+    #    日期与 ADR 编号只查模板：references 里可以写上游的真实日期（那是脚手架自己的事实记录）；
+    #    测试数量两条都查——参考文档同样不该写会变的数量。
+    template_rules = (
+        (CONCRETE_DATE_RE, "具体日期", "需要日期时用 `YYYY-MM-DD` 占位"),
+        (ADR_NUMBER_RE, "ADR 编号", "需要编号时用 `00NN` 占位"),
+    )
+    for rel, text in template_texts(root):
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for pattern, label, hint in template_rules:
+                match = pattern.search(line)
+                if match:
+                    checker.fail(f"{rel}:{lineno}", f"命中{label}「{match.group(0)}」——{hint}")
+
+    for rel, text in doc_texts(root):
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            match = TEST_COUNT_RE.search(line)
+            if match:
+                checker.fail(
+                    f"{rel}:{lineno}",
+                    f"命中测试数量「{match.group(0)}」——数量会变；写「全部通过 / 样例测试通过」即可",
+                )
+
+    # 2. 骨架阶段的 ADR 目录必须干净：新项目的第一条决策从 0001 起编号。
+    adr_dir = root / "templates/docs/adr"
+    if adr_dir.is_dir():
+        for path in sorted(adr_dir.iterdir()):
+            if path.is_file() and ADR_FILE_RE.match(path.name):
+                checker.fail(
+                    path.relative_to(root).as_posix(),
+                    "骨架阶段不许带编号 ADR：决策存档放 references/，新项目的 0001 要留给它自己",
+                )
+
+    # 3. 文档地图 ←→ 目录树双向对齐。
+    checker.problems.extend(docs_map_tree_problems(root))
+    return checker.problems
+
+
+def normalize_docs_path(path: str) -> str:
+    """把地图链接按 `docs/` 为基准归一化，消掉 `./`、`../` 与空段。"""
+    parts: list[str] = []
+    for segment in path.split("/"):
+        if segment == "..":
+            if parts:
+                parts.pop()
+        elif segment not in ("", "."):
+            parts.append(segment)
+    return "/".join(parts)
+
+
+def docs_map_paths(text: str) -> set[str]:
+    paths: set[str] = set()
+    for match in MD_LINK_RE.finditer(text):
+        target = match.group(1)
+        if target.startswith(("http://", "https://", "mailto:")):
+            continue
+        paths.add(normalize_docs_path(f"docs/{target}"))
+    return paths
+
+
+def docs_tree_paths(text: str) -> tuple[set[str], list[str]]:
+    """解析两棵目录树，返回（全部路径, 结构问题）。第一棵以仓库根为基准，第二棵在 `docs/` 下。"""
+    blocks = TREE_BLOCK_RE.findall(text)
+    problems: list[str] = []
+    if len(blocks) != 2:
+        problems.append(f"应有 2 个目录树代码块（仓库根 / docs 子树），实际 {len(blocks)} 个")
+        return set(), problems
+
+    paths: set[str] = set()
+    for index, block in enumerate(blocks):
+        prefix = "" if index == 0 else "docs"
+        stack: list[str] = []
+        for line in block.splitlines():
+            match = TREE_LINE_RE.match(line)
+            if not match:
+                continue
+            depth = len(match.group(1)) // TREE_INDENT
+            name = match.group(2).rstrip("/")
+            stack = stack[:depth] + [name]
+            entry = "/".join(([prefix] if prefix else []) + stack)
+            paths.add(entry)
+    # 第一棵里的 `docs/` 只是个节点，树内细节由第二棵负责；留着会让地图检查变成空转。
+    paths.discard("docs")
+    return paths, problems
+
+
+def docs_map_tree_problems(root: Path) -> list[str]:
+    checker = Checker(root)
+    map_text = checker.read(DOCS_MAP_FILE)
+    tree_text = checker.read(DOCS_TREE_FILE)
+    if map_text is None or tree_text is None:
+        return checker.problems
+
+    mapped = docs_map_paths(map_text)
+    treed, problems = docs_tree_paths(tree_text)
+    for problem in problems:
+        checker.fail(DOCS_TREE_FILE, problem)
+    if problems:
+        return checker.problems
+
+    def covered(path: str) -> bool:
+        return any(entry == path or entry.startswith(path + "/") for entry in treed)
+
+    for path in sorted(mapped):
+        if not covered(path):
+            checker.fail(DOCS_MAP_FILE, f"地图里的 {path} 在目录树中不存在（地图与树必须成对更新）")
+
+    listed = sorted(mapped)
+    for entry in sorted(treed):
+        leaf = entry.rsplit("/", 1)[-1]
+        if not re.search(r"\.(md|json)$", leaf) and not leaf.startswith("${"):
+            continue
+        if "*" in leaf or "YYYY" in leaf or "NNNN" in leaf:
+            continue  # 示意路径（如 `NNNN-*.md`）本来就不该逐项列出
+        if entry == "docs/README.md":
+            continue  # 地图是入口，不给自己列行
+        if any(entry == path or entry.startswith(path + "/") for path in listed):
+            continue
+        checker.fail(DOCS_TREE_FILE, f"目录树里的 {entry} 没有出现在文档地图里（地图与树必须成对更新）")
+
+    return checker.problems
+
+
 # ────────────────────────────── 入口 ──────────────────────────────
 
 def check_all(root: Path = ROOT) -> list[str]:
-    return check_versions(root) + check_skills(root) + check_diagrams.check_diagrams(root)
+    return (
+        check_versions(root)
+        + check_skills(root)
+        + check_diagrams.check_diagrams(root)
+        + check_docs(root)
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -478,7 +659,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="check_consistency.py",
         description="检查依赖版本、配套 skill 清单与架构图是否与源文件一致（离线、只读）",
     )
-    parser.add_argument("--only", choices=["all", "versions", "skills", "diagrams"], default="all",
+    parser.add_argument("--only", choices=["all", "versions", "skills", "diagrams", "docs"], default="all",
                         help="只跑其中一组检查（默认 all）")
     args = parser.parse_args(argv)
 
@@ -486,6 +667,7 @@ def main(argv: list[str] | None = None) -> int:
         "versions": ("依赖版本", check_versions),
         "skills": ("配套 skill 清单", check_skills),
         "diagrams": ("架构图与源文件", check_diagrams.check_diagrams),
+        "docs": ("文档卫生与地图/树", check_docs),
     }
     selected = groups if args.only == "all" else {args.only: groups[args.only]}
 

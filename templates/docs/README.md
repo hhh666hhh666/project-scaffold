@@ -20,6 +20,7 @@
 | [../AGENTS.md](../AGENTS.md) | **给 AI 的规矩**（跨工具摘要，只做路由） | AI / 未来的自己 | `.codebuddy/rules/` |
 | [../CLAUDE.md](../CLAUDE.md) | Claude Code 的入口：只导入 `AGENTS.md` 与四条规则，不写内容 | Claude Code | `AGENTS.md` + `.codebuddy/rules/` |
 | [../.codebuddy/commands/wrap-up.md](../.codebuddy/commands/wrap-up.md) | 收尾自检：把未决事项落 `docs/todo/`、补文档与引用、跑守卫脚本 | AI / 收尾时 | 本文件 |
+| [../.codebuddy/rules/](../.codebuddy/rules/) | 常驻规则（权威版本）：未决事项 / 改代码=改文档 / 会话工作台 / 设计 skill | AI / 未来的自己 | 各规则文件自身 |
 | [../scripts/${LINK_CHECK_SCRIPT}](../scripts/${LINK_CHECK_SCRIPT}) | md 相对链接与路径引用自检，提交前跑 | 提交代码的人 | 文件系统 |
 | [../scripts/${TODO_ARCHIVE_SCRIPT}](../scripts/${TODO_ARCHIVE_SCRIPT}) | 断言已结案的待办都已移入 `docs/todo/archive/` | 结案待办的人 / CI | 文件系统 |
 | [../scripts/${MODULE_TEST_SCRIPT}](../scripts/${MODULE_TEST_SCRIPT}) | 断言每个带 Controller 的模块都配了测试类 | 加新模块的人 / CI | 文件系统 |
@@ -30,12 +31,14 @@
 | [design/前端.md](./design/前端.md) | 前端页面流、路由、状态与 API 边界 | 改前端的人 | `frontend/src/` |
 | [design/设计skill清单.md](./design/设计skill清单.md) | 外部设计 skill 的角色与禁区（档案；速查见 `.codebuddy/rules/design-skills.md`） | 改前端 UI 的人 / AI | 本文件 |
 | [adr/](./adr/) | **决策结论**卡片（Status / Considered Options / Consequences） | 查「为什么这么定」的人 | ADR 自身 |
+| [operations/](./operations/) | 运行与运维（可选章节，按需自建） | 部署与运维的人 | 本目录 |
+| [testing/](./testing/) | 测试规范：现状与索引、分层理由与同步纪律（可选章节） | 加测试 / 改测试体系的人 | 各文件自身 |
 | [development/contributing.md](./development/contributing.md) | 分支 / 提交 / PR 约定与文档纪律 | 要提交代码的人 | `git log` |
 | [todo/](./todo/) | **未决事项唯一入口** | 想知道「还有什么没定」的人 | 各待办文件 |
 | [worklog/](./worklog/) | AI **会话**的实时进度（正在做什么 / 接下来 / 已做完） | 只对创建它的那次会话有意义，**其他会话不必读** | 各文件自身 |
 | [目录结构.md](./目录结构.md) | **两棵带注释目录树**：① 仓库根的文档散在哪 ② `docs/` 体系内部 | 新人 / 冷启动的 AI | 文件系统 |
 
-**可选章节**（开关式生成，没生成就没有这几个文件）：`docs/testing/README.md` 与 `docs/testing/系统说明.md`（测试体系规范）、`docs/operations/内存策略.md`（内存策略）、`deploy/` 与 `.github/workflows/release.yml`（部署）。
+**可选章节**（开关式生成，没生成就没有这几个文件）：`deploy/` 与 `.github/workflows/release.yml`。
 
 ## 决策只有 adr 记
 

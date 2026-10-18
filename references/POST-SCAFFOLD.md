@@ -21,7 +21,7 @@
 | # | 阶段 | 谁做 | 步骤 | 过线判据 | 停下点 |
 |---|------|------|------|----------|--------|
 | ① | **入库基线** | AI | `git init` → 全量 `git add` → 跑四条守卫 → 首次提交 | 四条守卫**全绿**；`git log` 有一条提交 | 提交前确认 |
-| ② | **依赖就位** | AI | 后端 `mvn -B -ntp test`；前端 `npm install`（生成锁文件）后 `npm run typecheck` 与 `npm run test` | 后端 3 个测试通过；前端 typecheck 无错、样例测试通过；`package-lock.json` 已入库 | 提交前确认 |
+| ② | **依赖就位** | AI | 后端 `mvn -B -ntp test`；前端 `npm install`（生成锁文件）后 `npm run typecheck` 与 `npm run test` | 后端单测全部通过；前端 typecheck 无错、样例测试通过；`package-lock.json` 已入库 | 提交前确认 |
 | ③ | **本地跑通** | AI + 用户 | 选择 Docker MySQL 或专用外部 MySQL → 配本地值（随机 JWT 密钥、端口核对）→ 起后端 → 起前端 | 有可用 MySQL 时：后端健康端点 200；**前端页面能开且那行字来自后端**；没有数据库时：只记录基础门禁完成，联通项明确为受阻 | — |
 | ④ | **门禁复核** | AI | 四条守卫 + typecheck + `npm run test` + `mvn test` 再跑一遍 | 全绿 | — |
 | ⑤ | **入库远程** | **用户拍板** | 问仓库名与公开/私有 → `gh repo create` → push → 盯 CI | **CI 首绿**（红不算完） | ⛔ 建仓与推送前确认 |

@@ -390,6 +390,128 @@ class SourcesCheckTest(unittest.TestCase):
         self.assertTrue(any("锁定清单解析失败" in p for p in problems), problems)
 
 
+class DocsCheckTest(unittest.TestCase):
+    MAP = """# 文档索引
+
+| 路径 | 用途 | 读者 | 真相源 |
+|------|------|------|--------|
+| [../README.md](../README.md) | 上手 | 所有人 | 代码 |
+| [README.md](./README.md) | 索引 | 所有人 | 本文件 |
+| [adr/](./adr/) | 决策 | 所有人 | ADR 自身 |
+| [design/](./design/) | 设计 | 所有人 | 代码 |
+"""
+
+    TREE = """# 目录结构
+
+## 一、仓库根
+
+```
+<仓库根>/
+├── README.md
+├── docs/
+└── scripts/
+```
+
+## 二、`docs/` 子树
+
+```
+docs/
+├── README.md
+├── adr/
+│   └── README.md
+└── design/
+    └── API.md
+```
+"""
+
+    def make_root(self, tmp: str) -> Path:
+        root = Path(tmp)
+        docs = root / "templates/docs"
+        (docs / "adr").mkdir(parents=True)
+        (docs / "design").mkdir(parents=True)
+        (docs / "adr/README.md").write_text("# ADR\n", encoding="utf-8")
+        (docs / "design/API.md").write_text("# API\n", encoding="utf-8")
+        (docs / "README.md").write_text(self.MAP, encoding="utf-8")
+        (docs / "目录结构.md").write_text(self.TREE, encoding="utf-8")
+        return root
+
+    def test_consistent_map_and_tree_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(cc.check_docs(self.make_root(tmp)), [])
+
+    def test_template_date_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/design/API.md").write_text("改于 2026-10-18\n", encoding="utf-8")
+            problems = cc.check_docs(root)
+        self.assertTrue(any("具体日期" in p and "2026-10-18" in p for p in problems), problems)
+
+    def test_template_adr_number_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/design/API.md").write_text("见 ADR 0003。\n", encoding="utf-8")
+            problems = cc.check_docs(root)
+        self.assertTrue(any("ADR 编号" in p and "ADR 0003" in p for p in problems), problems)
+
+    def test_numbered_adr_file_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/adr/0001-示例.md").write_text("# 决策\n", encoding="utf-8")
+            problems = cc.check_docs(root)
+        self.assertTrue(any("不许带编号 ADR" in p for p in problems), problems)
+
+    def test_test_count_is_reported_from_templates_and_references(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/design/API.md").write_text("后端 3 个测试通过\n", encoding="utf-8")
+            (root / "references").mkdir()
+            (root / "references/POST.md").write_text("前端 5 个用例通过\n", encoding="utf-8")
+            problems = cc.check_docs(root)
+        self.assertTrue(any("templates/docs/design/API.md" in p and "测试数量" in p for p in problems), problems)
+        self.assertTrue(any("references/POST.md" in p and "测试数量" in p for p in problems), problems)
+
+    def test_placeholders_are_not_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/design/API.md").write_text(
+                "日期写 YYYY-MM-DD；ADR 写 00NN；文件写 NNNN-*.md。\n", encoding="utf-8"
+            )
+            self.assertEqual(cc.check_docs(root), [])
+
+    def test_map_entry_missing_from_tree_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/README.md").write_text(
+                self.MAP + "| [operations/](./operations/) | 运维 | 运维 | 本目录 |\n", encoding="utf-8"
+            )
+            problems = cc.check_docs(root)
+        self.assertTrue(any("地图里的 docs/operations 在目录树中不存在" in p for p in problems), problems)
+
+    def test_tree_file_missing_from_map_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            # 地图里连 operations/ 这个上级目录都没有，其中的文档文件必须被点名。
+            (root / "templates/docs/目录结构.md").write_text(
+                self.TREE.replace(
+                    "    └── API.md",
+                    "    └── API.md\n└── operations/\n    └── 内存策略.md",
+                ),
+                encoding="utf-8",
+            )
+            problems = cc.check_docs(root)
+        self.assertTrue(any("operations/内存策略.md 没有出现在文档地图里" in p for p in problems), problems)
+
+    def test_tree_requires_exactly_two_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / "templates/docs/目录结构.md").write_text("```\nroot/\n```\n", encoding="utf-8")
+            problems = cc.check_docs(root)
+        self.assertTrue(any("应有 2 个目录树代码块" in p for p in problems), problems)
+
+    def test_real_repository_docs_check_passes(self) -> None:
+        self.assertEqual(cc.check_docs(ROOT), [])
+
+
 class CliTest(unittest.TestCase):
     def test_cli_passes_on_real_repository(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()) as output:
@@ -414,6 +536,14 @@ class CliTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(cc.main(["--only", "skills"]), 0)
         self.assertNotIn("依赖版本", output.getvalue())
+
+    def test_cli_only_docs_skips_other_groups(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(cc.main(["--only", "docs"]), 0)
+        text = output.getvalue()
+        self.assertIn("文档卫生与地图/树", text)
+        self.assertNotIn("依赖版本", text)
+        self.assertNotIn("配套 skill 清单", text)
 
     def test_cli_only_diagrams_skips_other_groups(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()) as output:

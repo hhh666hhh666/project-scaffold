@@ -222,8 +222,11 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertIn("<goal>report</goal>", pom_text)
                     self.assertNotIn("<goal>check</goal>", pom_text)
 
-                    # 组件测试的取舍有 ADR 落盘（不只是口头约定）。
-                    self.assertTrue((out / "docs/adr/0001-前端引入组件测试范本.md").is_file())
+                    # 组件测试的取舍由脚手架自己的 references 存档——
+                    # 生成项目的 docs/adr/ 必须保持干净：骨架阶段只有 README，
+                    # 新项目自己的第一条决策要从 0001 起编号。
+                    adr_dir = out / "docs/adr"
+                    self.assertEqual(sorted(p.name for p in adr_dir.iterdir()), ["README.md"])
 
                     # 登录闭环的三块机制与各自测试都必须真的落地。
                     for rel in (
