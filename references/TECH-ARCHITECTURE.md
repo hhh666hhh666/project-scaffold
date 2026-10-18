@@ -93,9 +93,10 @@
 | 命令 | 跑什么 | 需要什么 |
 |---|---|---|
 | `mvn test` | `*Test` 纯单元测试（surefire） | 不需要数据库、不需要 Docker |
-| `mvn verify` | 追加 `*IT` 集成测试（failsafe） | Testcontainers + 真 MySQL，需要容器环境 |
+| `mvn verify` | 追加 `*IT` 集成测试（failsafe） | Testcontainers + 真 MySQL，需要容器环境；所有 IT 共用一个容器（`support/IntegrationTestBase`） |
 | `npm run typecheck` | `vue-tsc --noEmit` | Node 与已安装依赖 |
-| `npm run test` | Vitest 跑 `src/**/*.test.ts` 纯逻辑单测 | Node 与已安装依赖；不需要浏览器、后端或数据库 |
+| `npm run test` | Vitest 跑 `src/**/*.test.ts`：逻辑单测与组件状态测试 | Node 与已安装依赖；不需要浏览器、后端或数据库 |
+| `npm run test:coverage` | 同上 + 覆盖率报告（只出报告，不卡门槛） | 同上 |
 | `npm run build` | Vite 打包 | ⚠️ esbuild 只剥离类型、不做检查；类型错误只由 typecheck 挡住 |
 
 `surefire` 不认 `*IT` 这个命名，所以 `mvn test` 刻意保持轻量；接口与落库测试显式走 `mvn verify`。

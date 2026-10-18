@@ -219,7 +219,8 @@ AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git comm
 - 后端依赖版本**钉死**（清单见 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表），不写 `<latest>`；
   前端用 `^` / `~` 范围，实际安装版本由初始化时生成的 `package-lock.json` 固定；
 - 集成测试用 **Testcontainers + 真 MySQL**，不用 H2——迁移脚本是 MySQL 方言，用 H2 等于把「测试环境与真实环境不一致」请回来；
-  模板自带一个最小的 `ExampleApiIT`，让 `mvn verify` 首日就有真库覆盖；
+  模板自带 `ExampleApiIT`（连通与鉴权契约）与 `ExampleErrorContractIT`（错误响应形状），所有 IT 共用一个容器；
+- 前端测试分逻辑单测与组件状态测试，**有个组件测试范本**（加载中 / 成功 / 失败）；覆盖率只出报告、不卡门槛；
 - 前端 Dockerfile **必须 glibc 基础镜像**（Node 的 slim 镜像，非 alpine）——esbuild 没有 x64-musl 官方二进制；
 - 模板里**没有任何真实凭据**：密钥、密码、服务器 IP 全是占位符，真实值一律走 GitHub Secrets；
 - 配套 skill **按固定提交安装**并记录来源，不追上游最新分支头；`--outdated` 只报告差异，不自动升级；

@@ -15,16 +15,20 @@
 
 ## 一句话现状
 
-**骨架阶段只有「纯逻辑」的单测**：后端 JUnit（单元 + 集成样例），前端 Vitest 覆盖请求层、登录态与路由守卫。
+**骨架阶段有两类测试**：后端 JUnit（纯单元 + 真库集成样例），前端 Vitest 覆盖请求层、登录态、路由守卫与一个组件状态样例。
 
 - 后端单元层的落点：`backend/src/test/java/…/module/<模块>/service/`，**类名以 `Test` 结尾**
-- 后端接口与服务集成层的落点：同一棵 `src/test` 树，**类名以 `IT` 结尾**——靠这个名字与单元层分开
-- 前端单测的落点：与源码同目录，文件名以 `.test.ts` 结尾（如 `frontend/src/api/request.test.ts`）
+- 后端接口与服务集成层的落点：同一棵 `src/test` 树，**类名以 `IT` 结尾**——靠这个名字与单元层分开；
+  它们统一继承 `support/IntegrationTestBase`，**整个测试进程只起一个 MySQL 容器**
+- 前端单测的落点：与源码同目录，文件名以 `.test.ts` 结尾（如 `frontend/src/api/request.test.ts`）；
+  组件测试放在被测组件旁边（如 `frontend/src/views/HomeView.test.ts`）
 
 具体有哪些测试类，看目录本身（数量会变，文档不写数字）。
 
 其中 `ExampleApiIT` 额外锁住一条**前后端契约**：受保护接口缺 token 时返回 HTTP 200 + 信封 `code = 401`。
 前端的「未登录跳登录页」依赖它；改拦截器行为时这条会先红。
+`ExampleErrorContractIT` 锁错误响应的形状：字段校验失败与请求体格式错都是 `code 400`，
+后者若落到兜底分支会变成 500，前端就会把「传错了」显示成「系统繁忙」。
 
 ## 单元层的边界（刻意的选择）
 
@@ -47,7 +51,12 @@
 
 前端（在 `frontend/` 目录下）：`npm run typecheck`、`npm run test` 与 `npm run build`——**以 `package.json` 的 `scripts` 为准**，本文件不复制。
 
-前端单测（Vitest）跑在 happy-dom 里，**不需要浏览器、不需要后端**；它只测纯逻辑，不挂载组件。
+前端单测（Vitest）跑在 happy-dom 里，**不需要浏览器、不需要后端**；组件测试只渲染到虚拟 DOM，不加载真浏览器。
+
+想要覆盖率报告（**只出报告、不卡门槛**）：
+
+- 前端 `npm run test:coverage` → `coverage/`（已 gitignore）
+- 后端 `mvn verify` → `target/site/jacoco/`（随 `verify` 自动生成）
 
 ## CI 怎么跑
 
@@ -60,7 +69,9 @@
 只描述，不成清单——要转化为行动去 `docs/todo/`。
 
 - 接口层覆盖的是**契约与数据边界**，不是全部业务分支——穷尽分支仍是单元层的活；
-- 前端只有**纯逻辑单测**，无组件测试、无 lint（取舍见 [系统说明](./系统说明.md)）；
+- 前端有**逻辑单测与组件状态测试**，无 lint、无交互路径测试（取舍见 [系统说明](./系统说明.md)）；
+- **业务错误码 `1000` 没有后端样例**：骨架阶段没有真实业务规则可抛 `BusinessException`，
+  第一个业务模块落地时再照 `ExampleErrorContractIT` 补；
 - **排版的审美与层级零自动化**——只有人眼能判断「协调 / 主次」；
 - 现有单元测试不覆盖 Web 层与数据库交互；
 - 三层都不验「第三方依赖有没有已知漏洞」——那是依赖扫描那条门禁的活（若 CI 里配了）。
@@ -68,10 +79,13 @@
 ## 加新测试放哪
 
 - **单元测试**：`backend/src/test/java/…/module/<模块>/service/`，类名以 `Test` 结尾
-- **接口与服务集成测试**：同一棵 `src/test` 树，**类名以 `IT` 结尾**；模板自带的样例是
-  `backend/src/test/java/…/module/example/ExampleApiIT.java`，可用它照抄 `@Testcontainers` + `@ServiceConnection` 的形状
+- **接口与服务集成测试**：同一棵 `src/test` 树，**类名以 `IT` 结尾**，并继承
+  `support/IntegrationTestBase`（共享容器）；模板自带两个样例：`ExampleApiIT`（通与鉴权）、
+  `ExampleErrorContractIT`（错误响应形状）
 - **前端单测**：与源码同目录、文件名以 `.test.ts` 结尾；模板自带的样例是
   `frontend/src/api/request.test.ts`，可用它照抄「假适配器替掉网络」的写法
+- **前端组件测试**：放在被测组件旁边，如 `frontend/src/views/HomeView.test.ts`——
+  用 `vi.mock` 把请求函数换成假数据，断言三种显示状态；模板依赖 `@vue/test-utils`
 - **端到端**：本模板不提供（见上面边界声明）
 
 ⚠️ 保持「纯 JUnit 测试不引 Spring 上下文」这条约束。某个逻辑确实需要数据库才能测时，**按 [系统说明](./系统说明.md) 里「改动 → 补哪层」的表**决定进哪一层，别顺手让 `mvn test` 背上起服务的成本——那是一次真正的取舍。
