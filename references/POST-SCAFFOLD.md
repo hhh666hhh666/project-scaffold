@@ -98,7 +98,7 @@ Flyway 会对这个目标库执行迁移；不要把生产库当作本地开发�
 
 ```bash
 # 路径 A 已由 compose 提供数据库；路径 B 使用上面三个 SPRING_DATASOURCE_* 变量
-curl --noproxy '*' -fsS http://127.0.0.1:8080/v3/api-docs >/dev/null && echo "后端 200 ✓"
+curl --noproxy '*' -fsS http://127.0.0.1:8080/actuator/health >/dev/null && echo "后端 200 ✓"
 cd frontend && npm run dev
 ```
 

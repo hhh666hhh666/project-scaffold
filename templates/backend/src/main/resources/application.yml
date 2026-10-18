@@ -56,6 +56,18 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
 
+# 健康端点：只暴露 health，不暴露 env / beans 等运维面。
+# /actuator 不在 /api/** 下，因此不经过 JWT 拦截器；nginx 只反代 /api/，它不会出现在公网。
+# 数据库不可用时 health 返回 503——这正是 compose 健康检查要的信号。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 logging:
   level:
     ${PACKAGE}: debug

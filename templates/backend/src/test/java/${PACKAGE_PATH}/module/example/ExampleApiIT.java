@@ -69,4 +69,17 @@ class ExampleApiIT {
         assertThat(payload.get("message")).isEqualTo("hello, IT");
         assertThat(payload.get("fromBackend")).isEqualTo(true);
     }
+
+    @Test
+    void healthEndpointReportsUpWithDatabase() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/actuator/health",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {
+                });
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsEntry("status", "UP");
+    }
 }

@@ -128,8 +128,8 @@ esac
 if command -v curl >/dev/null 2>&1; then
   case "$SCOPE" in
     server|all)
-      docker exec "${PROJECT_NAME}-server" curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:8080/v3/api-docs \
-        && echo "    后端 /v3/api-docs 正常" \
+      docker exec "${PROJECT_NAME}-server" curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:8080/actuator/health \
+        && echo "    后端 /actuator/health 正常" \
         || echo "    ⚠️ 后端探测失败，看容器日志" ;;
   esac
 fi

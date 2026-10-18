@@ -89,8 +89,10 @@ services:
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:MaxMetaspaceSize=112m -XX:MaxDirectMemorySize=32m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:TieredStopAtLevel=1 -XX:+UseSerialGC"
       SERVER_TOMCAT_THREADS_MAX: 32
     # 不发布端口：只经 web 容器的反代暴露 /api/，接口文档因此也不对外。
+    # 健康检查走专用端点，不拿接口文档当存活判据：即使以后关掉 springdoc，
+    # 部署链路也不会因此误判。数据库不可用时 actuator 返回 503。
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:8080/v3/api-docs || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -109,4 +111,11 @@ services:
     # 绑回环而不是 0.0.0.0，是为了①不与宿主上已有的服务抢 80/443、②不直接对公网可达。
     ports:
       - "127.0.0.1:${WEB_PORT}:80"
+    # nginx 已提供 /healthz；用 busybox wget（alpine 自带）探测，不额外装 curl。
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     logging: *default-logging

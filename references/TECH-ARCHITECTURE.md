@@ -62,6 +62,7 @@
 | 持久 | MyBatis-Plus `Mapper`、`Entity`、`DTO`、`VO` | `update-strategy: not_null` 是刻意保留的坑，注释里写明 |
 | 迁移 | `db/migration/V*.sql` | Flyway 启动时执行；脚本只追加、不修改已上线版本 |
 | 文档 | springdoc `/v3/api-docs`、`/swagger-ui.html` | 接口清单以运行时为准，文档不维护 endpoint 表 |
+| 健康 | actuator `/actuator/health` | 只暴露 health；数据库不可用时返回 503，compose 与部署脚本拿它当就绪判据 |
 
 配置的真实来源：
 

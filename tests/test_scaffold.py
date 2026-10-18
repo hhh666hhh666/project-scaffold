@@ -174,6 +174,17 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertIn("mvn -B -ntp verify", ci_text)
                     self.assertIn("target/failsafe-reports/TEST-*IT.xml", ci_text)
 
+                    app_yml = (out / "backend/src/main/resources/application.yml").read_text(encoding="utf-8")
+                    self.assertIn("include: health", app_yml)
+
+                    if deploy:
+                        compose = (out / "docker-compose.prod.yml").read_text(encoding="utf-8")
+                        self.assertIn("/actuator/health", compose)
+                        self.assertIn("/healthz", compose)
+                        self.assertNotIn("/v3/api-docs", compose)
+                        deploy_script = (out / "scripts/server-deploy.sh").read_text(encoding="utf-8")
+                        self.assertIn("/actuator/health", deploy_script)
+
                     self.assertEqual((out / "deploy/README.md").exists(), deploy)
                     self.assertEqual((out / "docs/operations/内存策略.md").exists(), ops)
                     self.assertEqual((out / "docs/testing/README.md").exists(), testing)
