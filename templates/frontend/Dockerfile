@@ -19,7 +19,10 @@ ARG APP_COMMIT=unknown
 
 RUN npm run build
 
-FROM nginx:alpine
+# 固定到稳定线而不是 nginx:alpine：alpine 跟随主线版本，会在不通知的情况下跨小版本漂移；
+# 1.30-alpine 只自动吃补丁更新（安全修复），与 node / mysql 按主版本固定的口径一致。
+# ⚠️ Dependabot 不覆盖基础镜像，升级 nginx 要手动改这里并同步版本表。
+FROM nginx:1.30-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

@@ -170,6 +170,20 @@ class VersionsTest(unittest.TestCase):
             any(".github/workflows/full-build.yml" in p and "node" in p for p in problems), problems
         )
 
+    def test_stale_nginx_in_frontend_dockerfile_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / "templates/frontend/Dockerfile", "FROM nginx:1.30-alpine", "FROM nginx:1.31-alpine")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("nginx" in p and "1.31" in p for p in problems), problems)
+
+    def test_missing_nginx_version_row_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            drop_table_row(root / "references/TECH-STACK.md", cc.VERSIONS_MARKER, "`nginx`")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("版本表缺少登记项：nginx" in p for p in problems), problems)
+
     def test_every_mysql_image_occurrence_is_checked(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = clone_root(tmp)

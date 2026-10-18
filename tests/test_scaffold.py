@@ -199,6 +199,31 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertIn("demo-app:token", auth_text)
                     self.assertNotIn("${", auth_text)
 
+                    # nginx：压缩、缓存与安全头都在；且 add_header 绝不能出现在 location 里——
+                    # 一旦出现，server 层的安全头会静默全部失效（nginx 的经典陷阱）。
+                    nginx_conf = (out / "frontend/nginx.conf").read_text(encoding="utf-8")
+                    for marker in (
+                        "server_tokens off",
+                        "gzip on",
+                        "expires 1y",
+                        "try_files $uri =404",
+                        "default_type text/plain",
+                        "X-Content-Type-Options",
+                    ):
+                        self.assertIn(marker, nginx_conf)
+                    active = [
+                        line for line in nginx_conf.splitlines()
+                        if line.strip() and not line.lstrip().startswith("#")
+                    ]
+                    first_location = next(i for i, line in enumerate(active) if "location" in line)
+                    self.assertTrue(any("add_header" in line for line in active[:first_location]))
+                    self.assertFalse(any("add_header" in line for line in active[first_location:]))
+
+                    self.assertTrue((out / "frontend/public/favicon.svg").is_file())
+                    dockerfile = (out / "frontend/Dockerfile").read_text(encoding="utf-8")
+                    self.assertIn("FROM nginx:1.30-alpine", dockerfile)
+                    self.assertNotRegex(dockerfile, r"(?m)^FROM nginx:(alpine|latest)\b")
+
                     app_yml = (out / "backend/src/main/resources/application.yml").read_text(encoding="utf-8")
                     self.assertIn("include: health", app_yml)
 

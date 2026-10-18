@@ -43,7 +43,7 @@ DESIGN_SKILLS_MARKER = "consistency:design-skills"
 # 版本表里必须出现的标识。多一个、少一个都算不一致——防止改名或误删后检查静默变弱。
 REQUIRED_VERSION_IDS = frozenset({
     "spring-boot", "mybatis-plus", "mapstruct", "lombok-mapstruct-binding",
-    "jjwt", "springdoc", "jdk", "node", "mysql", "vue", "vite", "tailwindcss",
+    "jjwt", "springdoc", "jdk", "node", "nginx", "mysql", "vue", "vite", "tailwindcss",
     "vue-router", "pinia", "typescript", "vitest", "happy-dom",
 })
 
@@ -68,6 +68,7 @@ FRONTEND_PACKAGES = {
 
 FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.MULTILINE)
 NODE_IMAGE_RE = re.compile(r"^node:(\d+)")
+NGINX_IMAGE_RE = re.compile(r"^nginx:(\d+\.\d+)")
 JRE_IMAGE_RE = re.compile(r"eclipse-temurin:(\d+)")
 JAVA_VERSION_RE = re.compile(r"java-version:\s*['\"]?(\d+)")
 NODE_VERSION_RE = re.compile(r"node-version:\s*['\"]?(\d+)")
@@ -271,6 +272,7 @@ def check_versions(root: Path) -> list[str]:
         compare("jdk", jre, "templates/backend/Dockerfile 的 JRE 镜像")
     if frontend_docker is not None:
         compare("node", image_version(frontend_docker, NODE_IMAGE_RE), "templates/frontend/Dockerfile")
+        compare("nginx", image_version(frontend_docker, NGINX_IMAGE_RE), "templates/frontend/Dockerfile 的运行镜像")
 
     for rel in CI_TOOLCHAIN_FILES:
         text = checker.read(rel)

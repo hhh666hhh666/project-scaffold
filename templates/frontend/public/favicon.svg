@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="站点图标（占位）">
+  <!-- 占位图标：接手后换成自己的品牌图标，路径保持 public/favicon.svg 即可。 -->
+  <rect width="32" height="32" rx="8" fill="#1f2937" />
+  <path d="M11 11h10v10" fill="none" stroke="#f8fafc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
