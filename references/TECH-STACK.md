@@ -49,7 +49,7 @@
 | `jdk` | JDK | `21` | pom 的 `java.version` 与后端 JRE 镜像 |
 | `node` | Node（前端构建镜像） | `22` | `templates/frontend/Dockerfile` 的 `node:22-slim` |
 | `nginx` | Nginx（前端运行镜像） | `1.30` | `templates/frontend/Dockerfile` 的 `nginx:1.30-alpine`（稳定线，只吃补丁） |
-| `mysql` | MySQL（开发 / 生产 / 迁移重放镜像） | `8` | 两份 compose 与 `release.yml` 的 `mysql:8`，以及集成测试样例 |
+| `mysql` | MySQL（开发 / 生产 / 迁移重放镜像） | `8` | 两份 compose 与 `release.yml` 的 `mysql:8`，以及集成测试基类 |
 | `vue` | Vue | `^3.5.44` | `templates/frontend/package.json` |
 | `vite` | Vite | `^7.3.7` | 同上 |
 | `tailwindcss` | Tailwind CSS | `^4.3.3` | 同上；`@tailwindcss/vite` 必须同值 |
@@ -58,6 +58,8 @@
 | `typescript` | TypeScript | `~6.0.3` | 同上 |
 | `vitest` | Vitest | `^3.2.7` | 同上 |
 | `happy-dom` | happy-dom（单测 DOM 环境） | `^21.0.3` | 同上 |
+| `vue-test-utils` | Vue Test Utils（组件测试） | `^2.5.1` | 同上 |
+| `vitest-coverage` | Vitest 覆盖率插件（`@vitest/coverage-v8`） | `^3.2.7` | 同上；必须与 `vitest` 同值 |
 <!-- consistency:versions:end -->
 
 ## 二、前端（`frontend/`）

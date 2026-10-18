@@ -194,14 +194,41 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <!-- 某些本机策略不允许 JVM 自我附加 agent，Mockito 的 MockMaker 会初始化失败；
-                         -Djdk.attach.allowAttachSelf=true 是 JDK 官方开关，在别的环境上无副作用。 -->
-                    <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
+                         -Djdk.attach.allowAttachSelf=true 是 JDK 官方开关，在别的环境上无副作用。
+                         @{argLine} 是 JaCoCo 在 initialize 阶段写入的属性：写成 late replacement，
+                         覆盖率探针才会同时挂在集成测试上（直接写死会把探针整个顶掉）。 -->
+                    <argLine>@{argLine} -Djdk.attach.allowAttachSelf=true</argLine>
                 </configuration>
                 <executions>
                     <execution>
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              覆盖率**只出报告，不设门槛**：报告用来「看一眼哪里没测」，
+              不用来卡构建——质量政策是「只测静默错误」，追数字会逼出一堆没用的断言。
+              ⚠️ 不要加 check 目标；要加得先改质量政策，而不是在 pom 里顺手加一行。
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
                         </goals>
                     </execution>
                 </executions>

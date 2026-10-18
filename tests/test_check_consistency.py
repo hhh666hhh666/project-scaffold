@@ -25,7 +25,7 @@ FIXTURE_FILES = (
     "templates/docker/docker-compose.dev.yml",
     "templates/deploy/docker-compose.prod.yml",
     "templates/deploy/.github/workflows/release.yml",
-    "templates/backend/src/test/java/${PACKAGE_PATH}/module/example/ExampleApiIT.java",
+    "templates/backend/src/test/java/${PACKAGE_PATH}/support/IntegrationTestBase.java",
     ".github/workflows/full-build.yml",
     "references/TECH-STACK.md",
     "references/SKILL-SOURCES.json",
@@ -211,6 +211,21 @@ class VersionsTest(unittest.TestCase):
             edit(root / "templates/frontend/package.json", '"pinia": "^3.0.4"', '"pinia": "^4.0.0"')
             problems = cc.check_versions(root)
         self.assertTrue(any("pinia" in p and "^4.0.0" in p for p in problems), problems)
+
+    def test_missing_vue_test_utils_row_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            drop_table_row(root / "references/TECH-STACK.md", cc.VERSIONS_MARKER, "`vue-test-utils`")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("版本表缺少登记项：vue-test-utils" in p for p in problems), problems)
+
+    def test_coverage_plugin_must_match_vitest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / "templates/frontend/package.json", '"@vitest/coverage-v8": "^3.2.7"',
+                 '"@vitest/coverage-v8": "^3.1.0"')
+            problems = cc.check_versions(root)
+        self.assertTrue(any("@vitest/coverage-v8" in p and "同版本线发布" in p for p in problems), problems)
 
     def test_missing_vue_router_row_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

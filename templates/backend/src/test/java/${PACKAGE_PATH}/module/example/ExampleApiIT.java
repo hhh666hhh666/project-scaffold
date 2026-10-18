@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,11 +11,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import ${PACKAGE}.security.JwtUtil;
+import ${PACKAGE}.support.IntegrationTestBase;
 
 import java.util.Map;
 
@@ -37,21 +34,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>它归 failsafe（文件名以 {@code IT} 结尾），所以 {@code mvn test} 不会跑它、
  * 也不需要 Docker；{@code mvn verify} 才会起容器。
  *
- * <p>写新的集成测试照这个形状：{@code @SpringBootTest(RANDOM_PORT)} +
- * {@code @Testcontainers} + {@code @ServiceConnection}。不要用 H2 替代 MySQL，
- * 也不要把需要落库的逻辑塞回 {@code *Test}。
+ * <p>写新的集成测试照这个形状：{@code extends IntegrationTestBase} +
+ * {@code @SpringBootTest(RANDOM_PORT)}。**不要在子类里再声明容器**——
+ * 基类已经共享了一个，重复声明会按类再起一个。错误响应的形状另见
+ * {@code ExampleErrorContractIT}。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-class ExampleApiIT {
-
-    /**
-     * 镜像版本与版本表、两份 compose 保持一致；由一致性检查盯着。
-     * {@code @ServiceConnection} 会把连接信息自动交给数据源，不需要手写 DynamicPropertySource。
-     */
-    @Container
-    @ServiceConnection
-    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8");
+class ExampleApiIT extends IntegrationTestBase {
 
     @Autowired
     TestRestTemplate restTemplate;

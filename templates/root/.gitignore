@@ -3,6 +3,7 @@ target/
 node_modules/
 dist/
 dist-ssr/
+coverage/
 *.log
 
 # 本机运行配置（含密码与 JWT 密钥），绝不入库

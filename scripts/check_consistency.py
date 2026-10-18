@@ -45,6 +45,7 @@ REQUIRED_VERSION_IDS = frozenset({
     "spring-boot", "mybatis-plus", "mapstruct", "lombok-mapstruct-binding",
     "jjwt", "springdoc", "jdk", "node", "nginx", "mysql", "vue", "vite", "tailwindcss",
     "vue-router", "pinia", "typescript", "vitest", "happy-dom",
+    "vue-test-utils", "vitest-coverage",
 })
 
 POM_PROPERTIES = {
@@ -64,6 +65,8 @@ FRONTEND_PACKAGES = {
     "typescript": ("devDependencies", "typescript"),
     "vitest": ("devDependencies", "vitest"),
     "happy-dom": ("devDependencies", "happy-dom"),
+    "vue-test-utils": ("devDependencies", "@vue/test-utils"),
+    "vitest-coverage": ("devDependencies", "@vitest/coverage-v8"),
 }
 
 FROM_RE = re.compile(r"^\s*FROM\s+(\S+)", re.MULTILINE)
@@ -79,7 +82,7 @@ MYSQL_IMAGE_FILES = (
     "templates/docker/docker-compose.dev.yml",
     "templates/deploy/docker-compose.prod.yml",
     "templates/deploy/.github/workflows/release.yml",
-    "templates/backend/src/test/java/${PACKAGE_PATH}/module/example/ExampleApiIT.java",
+    "templates/backend/src/test/java/${PACKAGE_PATH}/support/IntegrationTestBase.java",
 )
 
 # 工作流里写死的 toolchain 版本。模板升级时漏改这里，生成项目会在另一版 JDK / Node 上跑，
@@ -308,6 +311,16 @@ def check_versions(root: Path) -> list[str]:
             checker.fail(
                 "templates/frontend/package.json",
                 f"tailwindcss={tailwind} 与 @tailwindcss/vite={vite_plugin} 声明不一致（两者同版本发布）",
+            )
+
+        # 覆盖率插件按 Vitest 的版本线发布：版本对不上会在运行时直接报不兼容。
+        vitest, coverage = str(deps.get("vitest") or ""), str(deps.get("@vitest/coverage-v8") or "")
+        if not vitest or not coverage:
+            checker.fail("templates/frontend/package.json", "vitest 与 @vitest/coverage-v8 必须同时存在")
+        elif vitest != coverage:
+            checker.fail(
+                "templates/frontend/package.json",
+                f"vitest={vitest} 与 @vitest/coverage-v8={coverage} 声明不一致（两者同版本线发布）",
             )
 
     return checker.problems

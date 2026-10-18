@@ -167,11 +167,30 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     integration_test = out / "backend/src/test/java/com/example/demoapp/module/example/ExampleApiIT.java"
                     self.assertTrue(integration_test.is_file())
                     integration_text = integration_test.read_text(encoding="utf-8")
-                    self.assertIn('new MySQLContainer<>("mysql:8")', integration_text)
+                    # 容器只在基类声明一次：每个 IT 类各起一个容器会让 CI 时间随测试类线性增长。
+                    base_test = out / "backend/src/test/java/com/example/demoapp/support/IntegrationTestBase.java"
+                    self.assertTrue(base_test.is_file())
+                    base_text = base_test.read_text(encoding="utf-8")
+                    self.assertIn('new MySQLContainer<>("mysql:8")', base_text)
+                    self.assertEqual(base_text.count("MySQLContainer<?>"), 1)
+                    self.assertIn("@DynamicPropertySource", base_text)
+                    self.assertIn("extends IntegrationTestBase", integration_text)
+                    self.assertNotIn("MySQLContainer", integration_text)
+                    self.assertNotIn("@Container", integration_text)
                     self.assertNotIn("${", integration_text)
                     # 鉴权契约：缺 token = HTTP 200 + code 401，前端 401 跳转依赖它。
                     self.assertIn("/api/example/echo", integration_text)
                     self.assertIn('containsEntry("code", 401)', integration_text)
+
+                    # 错误响应契约：校验失败与请求体格式错都必须是 code 400（不是 500）。
+                    error_it = out / "backend/src/test/java/com/example/demoapp/module/example/ExampleErrorContractIT.java"
+                    self.assertTrue(error_it.is_file())
+                    error_text = error_it.read_text(encoding="utf-8")
+                    self.assertIn("extends IntegrationTestBase", error_text)
+                    self.assertIn('containsEntry("code", 400)', error_text)
+                    self.assertIn("HttpMessageNotReadableException", (
+                        out / "backend/src/main/java/com/example/demoapp/common/GlobalExceptionHandler.java"
+                    ).read_text(encoding="utf-8"))
 
                     ci_text = (out / ".github/workflows/ci.yml").read_text(encoding="utf-8")
                     self.assertIn("integration:", ci_text)
@@ -182,9 +201,29 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertTrue((out / "frontend/src/api/request.test.ts").is_file())
                     frontend_pkg = (out / "frontend/package.json").read_text(encoding="utf-8")
                     self.assertIn('"test": "vitest run"', frontend_pkg)
+                    self.assertIn('"test:coverage": "vitest run --coverage"', frontend_pkg)
                     self.assertIn('"vitest"', frontend_pkg)
                     self.assertIn('"happy-dom"', frontend_pkg)
+                    self.assertIn('"@vue/test-utils"', frontend_pkg)
+                    self.assertIn('"@vitest/coverage-v8"', frontend_pkg)
                     self.assertIn("npm run test", ci_text)
+
+                    # 组件测试范本：三种显示状态 + 请求被替掉，必须真的生成。
+                    component_test = out / "frontend/src/views/HomeView.test.ts"
+                    self.assertTrue(component_test.is_file())
+                    component_text = component_test.read_text(encoding="utf-8")
+                    self.assertIn("vi.mock('@/api/example'", component_text)
+                    self.assertIn("加载中", component_text)
+                    self.assertIn("flushPromises", component_text)
+
+                    # 覆盖率只出报告：出现 check 目标等于给构建加了门槛，与质量政策相反。
+                    pom_text = (out / "backend/pom.xml").read_text(encoding="utf-8")
+                    self.assertIn("jacoco-maven-plugin", pom_text)
+                    self.assertIn("<goal>report</goal>", pom_text)
+                    self.assertNotIn("<goal>check</goal>", pom_text)
+
+                    # 组件测试的取舍有 ADR 落盘（不只是口头约定）。
+                    self.assertTrue((out / "docs/adr/0001-前端引入组件测试范本.md").is_file())
 
                     # 登录闭环的三块机制与各自测试都必须真的落地。
                     for rel in (
