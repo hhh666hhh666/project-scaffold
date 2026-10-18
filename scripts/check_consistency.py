@@ -43,7 +43,7 @@ DESIGN_SKILLS_MARKER = "consistency:design-skills"
 # 版本表里必须出现的标识。多一个、少一个都算不一致——防止改名或误删后检查静默变弱。
 REQUIRED_VERSION_IDS = frozenset({
     "spring-boot", "mybatis-plus", "mapstruct", "lombok-mapstruct-binding",
-    "jjwt", "springdoc", "jdk", "node", "vue", "vite", "tailwindcss", "typescript",
+    "jjwt", "springdoc", "jdk", "node", "mysql", "vue", "vite", "tailwindcss", "typescript",
 })
 
 POM_PROPERTIES = {
@@ -66,6 +66,14 @@ NODE_IMAGE_RE = re.compile(r"^node:(\d+)")
 JRE_IMAGE_RE = re.compile(r"eclipse-temurin:(\d+)")
 JAVA_VERSION_RE = re.compile(r"java-version:\s*['\"]?(\d+)")
 NODE_VERSION_RE = re.compile(r"node-version:\s*['\"]?(\d+)")
+MYSQL_IMAGE_RE = re.compile(r"(?<![\w/:.])mysql:(\d+)")
+
+# MySQL 镜像写死在多处；每一处都要核对，不能只看第一处。
+MYSQL_IMAGE_FILES = (
+    "templates/docker/docker-compose.dev.yml",
+    "templates/deploy/docker-compose.prod.yml",
+    "templates/deploy/.github/workflows/release.yml",
+)
 
 # 工作流里写死的 toolchain 版本。模板升级时漏改这里，生成项目会在另一版 JDK / Node 上跑，
 # 而两侧的构建结果未必一致——所以让一致性检查一起盯着。
@@ -264,6 +272,17 @@ def check_versions(root: Path) -> list[str]:
             continue
         compare("jdk", first_match(JAVA_VERSION_RE, text), f"{rel} 的 java-version")
         compare("node", first_match(NODE_VERSION_RE, text), f"{rel} 的 node-version")
+
+    for rel in MYSQL_IMAGE_FILES:
+        text = checker.read(rel)
+        if text is None:
+            continue
+        found = MYSQL_IMAGE_RE.findall(text)
+        if not found:
+            checker.fail(rel, "找不到 mysql:<版本> 镜像标记")
+            continue
+        for actual in sorted(set(found)):
+            compare("mysql", actual, f"{rel} 的 MySQL 镜像")
 
     for key, (section, name) in FRONTEND_PACKAGES.items():
         actual = ""

@@ -22,6 +22,9 @@ FIXTURE_FILES = (
     "templates/frontend/package.json",
     "templates/frontend/Dockerfile",
     "templates/ci/ci.yml",
+    "templates/docker/docker-compose.dev.yml",
+    "templates/deploy/docker-compose.prod.yml",
+    "templates/deploy/.github/workflows/release.yml",
     ".github/workflows/full-build.yml",
     "references/TECH-STACK.md",
     "references/SKILL-SOURCES.json",
@@ -165,6 +168,27 @@ class VersionsTest(unittest.TestCase):
         self.assertTrue(
             any(".github/workflows/full-build.yml" in p and "node" in p for p in problems), problems
         )
+
+    def test_every_mysql_image_occurrence_is_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            path = root / "templates/deploy/.github/workflows/release.yml"
+            text = path.read_text(encoding="utf-8")
+            # release.yml 里 mysql:8 出现两处；只改第二处，第一处仍是 8。
+            self.assertGreaterEqual(text.count("mysql:8"), 2)
+            path.write_text(text.replace(
+                "docker run --rm --network host -i mysql:8",
+                "docker run --rm --network host -i mysql:9",
+            ), encoding="utf-8")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("release.yml" in p and "mysql" in p and "9" in p for p in problems), problems)
+
+    def test_missing_mysql_version_row_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            drop_table_row(root / "references/TECH-STACK.md", cc.VERSIONS_MARKER, "`mysql`")
+            problems = cc.check_versions(root)
+        self.assertTrue(any("版本表缺少登记项：mysql" in p for p in problems), problems)
 
     def test_missing_version_row_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

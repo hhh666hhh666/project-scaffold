@@ -48,6 +48,7 @@
 | `springdoc` | springdoc | `2.9.1` | `springdoc.version` 属性 |
 | `jdk` | JDK | `21` | pom 的 `java.version` 与后端 JRE 镜像 |
 | `node` | Node（前端构建镜像） | `22` | `templates/frontend/Dockerfile` 的 `node:22-slim` |
+| `mysql` | MySQL（开发 / 生产 / 迁移重放镜像） | `8` | 两份 compose 与 `release.yml` 的 `mysql:8`，以及集成测试样例 |
 | `vue` | Vue | `^3.5.0` | `templates/frontend/package.json` |
 | `vite` | Vite | `^6.4.3` | 同上 |
 | `tailwindcss` | Tailwind CSS | `^4.3.3` | 同上；`@tailwindcss/vite` 必须同值 |

@@ -524,7 +524,7 @@ def check_facts(root: Path) -> list[str]:
     except (OSError, UnicodeDecodeError) as exc:
         return [f"references/TECH-STACK.md: 无法读取版本表：{exc}"]
 
-    required = ("spring-boot", "vue", "tailwindcss", "node")
+    required = ("spring-boot", "vue", "tailwindcss", "node", "mysql")
     missing = [key for key in required if key not in declared]
     if missing:
         return [f"references/TECH-STACK.md: 版本表缺少登记项 {', '.join(missing)}，无法核对图内事实"]
@@ -564,6 +564,12 @@ def check_facts(root: Path) -> list[str]:
          r"127\.0\.0\.1:(\d+)", ports.get("backend-port", ""), "后端端口"),
         ("references/architecture-runtime.dot",
          r"nginx :(\d+)", ports.get("web-port", ""), "web 端口"),
+        ("references/architecture-runtime.dot",
+         r"MySQL (\d+)", declared["mysql"], "MySQL 主版本"),
+        ("references/architecture-quality.dot",
+         r"MySQL (\d+)", declared["mysql"], "MySQL 主版本"),
+        ("references/architecture-quality.dot",
+         r"mysql:(\d+)", declared["mysql"], "MySQL 镜像版本"),
         ("references/TECH-ARCHITECTURE.md",
          r"Spring Boot (\d+\.\d+)",
          _minor(declared["spring-boot"]),
@@ -579,6 +585,8 @@ def check_facts(root: Path) -> list[str]:
          r"Spring Boot :(\d+)", ports.get("backend-port", ""), "后端端口"),
         ("references/TECH-ARCHITECTURE.md",
          r"nginx :(\d+)", ports.get("web-port", ""), "web 端口"),
+        ("references/TECH-ARCHITECTURE.md",
+         r"MySQL (\d+)", declared["mysql"], "MySQL 主版本"),
     ]
 
     for rel, pattern, expected, description in facts:

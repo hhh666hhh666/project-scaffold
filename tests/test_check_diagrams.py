@@ -224,6 +224,13 @@ class FactTest(unittest.TestCase):
             problems = cd.check_diagrams(root)
         self.assertTrue(any("Node 主版本" in p and "20" in p for p in problems), problems)
 
+    def test_mysql_version_in_diagram_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = clone_root(tmp)
+            edit(root / "references/architecture-runtime.dot", "MySQL 8", "MySQL 9")
+            problems = cd.check_diagrams(root)
+        self.assertTrue(any("MySQL 主版本" in p and "9" in p for p in problems), problems)
+
 
 if __name__ == "__main__":
     unittest.main()
