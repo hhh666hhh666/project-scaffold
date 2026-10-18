@@ -6,7 +6,7 @@
 #
 # 从部署脚本继承下来的设计（要改这里之前先读这几条）：
 #   * mysql 永不重建：用 --no-deps 绕开 depends_on，它最多在「没在跑」时被拉起一次；
-#   * up -d 之前先强制备份一次（第一道保险，备份脚本由你自己补）；
+#   * up -d 之前先强制备份一次（模板自带 backup-mysql.sh，可替换为自己的方案）；
 #   * 等 healthcheck（无 healthcheck 的容器退回看 State.Status）；
 #   * 失败时打印日志尾部与回滚命令。
 #
@@ -98,8 +98,10 @@ else
 fi
 wait_ready "${PROJECT_NAME}-mysql" 180 || fail "mysql 起不来" mysql
 
-# ---- 3. up -d 之前先备份一次（脚本由你自己补；没有就删掉这一步，但要知道代价）----
-if [ -x ./backup-mysql.sh ]; then
+# ---- 3. up -d 之前先备份一次（模板自带脚本；替换它时保留同样的失败即中止语义）----
+# 用 -f 而不是 -x：调用方式是 `bash ./backup-mysql.sh`，可执行位不可靠
+# （尤其在 Windows 上生成、提交、再 scp 到 Linux 的链路里）。
+if [ -f ./backup-mysql.sh ]; then
   echo "==> 部署前备份"
   ENV_FILE="$ENV_FILE" bash ./backup-mysql.sh || fail "备份失败，中止部署（不带着没备份的库去跑迁移）"
 else

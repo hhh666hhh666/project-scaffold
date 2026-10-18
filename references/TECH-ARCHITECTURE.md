@@ -103,6 +103,7 @@
   前端 `npm ci → typecheck → build`。
 - `release.yml`（`--with-deploy` 才生成）：推 `v*` tag 后依次做版本门禁 → 一次性 `mysql:8` 重放迁移
   → 构建并推送两个镜像 → SSH 部署；**不推 `latest`**，回滚落点是版本 tag。
+  部署脚本在替换容器前会先调用 `backup-mysql.sh`，备份失败即中止；该备份是本机备份，不防磁盘损坏。
 - `dependabot.yml`（总是生成）：每周为 Maven / npm / GitHub Actions 提升级 PR，只提案、不自动合并，
   也不触发部署；基础镜像与 MySQL 镜像不在覆盖范围。
 

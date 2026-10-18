@@ -32,3 +32,25 @@ bash server-rollback.sh 1.0.3      # 或显式指定
 ```
 
 ⚠️ **回滚只换代码，不回滚数据库**——迁移是不可逆的，所以部署前必须先备份。
+
+## 备份与恢复
+
+`server-deploy.sh` 在启动新版本之前会调用 `scripts/backup-mysql.sh`；备份失败会中止部署。
+脚本会随发布流水线一起送到服务器，不需要手工传。
+
+- **位置**：默认 `/srv/${PROJECT_NAME}/backups/`，可用 `BACKUP_DIR` 覆盖；
+- **命名**：`<库名>-<年月日-时分秒>-<版本>.sql.gz`；
+- **保留**：默认最近 7 份，可用 `BACKUP_KEEP` 覆盖；部署前会打印清理了哪些旧文件；
+- **手动执行**：`cd /srv/${PROJECT_NAME}/compose/scripts && ENV_FILE=/srv/${PROJECT_NAME}/.env bash backup-mysql.sh`。
+
+恢复前先停掉后端，避免恢复过程中继续写入：
+
+```bash
+docker stop <项目名>-server
+gunzip -c /srv/<项目名>/backups/<备份文件>.sql.gz \
+  | docker exec -i <项目名>-mysql mysql -uroot -p <库名>
+docker start <项目名>-server
+```
+
+⚠️ 这是**本机备份**：防误操作、坏迁移和容器误删，**不防磁盘损坏**。
+异地或对象存储备份需要按自己的基础设施另配。

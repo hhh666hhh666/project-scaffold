@@ -194,6 +194,7 @@ jobs:
           scp docker-compose.prod.yml \
             "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/srv/${PROJECT_NAME}/compose/docker-compose.prod.yml"
           scp scripts/server-deploy.sh scripts/server-rollback.sh scripts/server-compose.sh \
+            scripts/backup-mysql.sh \
             "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/srv/${PROJECT_NAME}/compose/scripts/"
 
       - name: 执行部署

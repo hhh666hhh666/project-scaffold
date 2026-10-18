@@ -4,6 +4,7 @@ import contextlib
 import io
 import itertools
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -184,6 +185,21 @@ class ScaffoldGenerationTest(unittest.TestCase):
                         self.assertNotIn("/v3/api-docs", compose)
                         deploy_script = (out / "scripts/server-deploy.sh").read_text(encoding="utf-8")
                         self.assertIn("/actuator/health", deploy_script)
+                        self.assertIn("-f ./backup-mysql.sh", deploy_script)
+
+                        backup = out / "scripts/backup-mysql.sh"
+                        self.assertTrue(backup.is_file())
+                        backup_text = backup.read_text(encoding="utf-8")
+                        self.assertIn("MYSQL_PWD", backup_text)
+                        self.assertIn("demo-app-mysql", backup_text)
+                        # 这些是脚手架占位符，渲染后不应残留；bash 自己的 ${VAR} 不在检查范围。
+                        self.assertNotIn("${PROJECT_NAME}", backup_text)
+                        self.assertNotIn("${DB_NAME}", backup_text)
+
+                        release_text = (out / ".github/workflows/release.yml").read_text(encoding="utf-8")
+                        self.assertIn("scripts/backup-mysql.sh", release_text)
+                    else:
+                        self.assertFalse((out / "scripts/backup-mysql.sh").exists())
 
                     self.assertEqual((out / "deploy/README.md").exists(), deploy)
                     self.assertEqual((out / "docs/operations/内存策略.md").exists(), ops)
@@ -243,6 +259,21 @@ class ScaffoldGenerationTest(unittest.TestCase):
                 scaffold.main(["--name", "demo-app", "--out", str(out), "--backend-port", "0"])
             self.assertEqual(error.exception.code, 2)
             self.assertFalse(out.exists())
+
+
+class ShellSyntaxTest(unittest.TestCase):
+    def test_deploy_scripts_parse_with_bash(self) -> None:
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("当前环境没有 bash")
+        scripts = sorted((ROOT / "templates" / "deploy" / "scripts").glob("*.sh"))
+        self.assertTrue(scripts)
+        for path in scripts:
+            with self.subTest(script=path.name):
+                result = subprocess.run(
+                    [bash, "-n", str(path)], capture_output=True, text=True, encoding="utf-8"
+                )
+                self.assertEqual(result.returncode, 0, f"{path.name}: {result.stderr}")
 
 
 class DependabotTemplateTest(unittest.TestCase):
