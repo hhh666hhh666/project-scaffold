@@ -85,7 +85,7 @@ jobs:
         run: ls target/failsafe-reports/TEST-*IT.xml
 
   frontend:
-    name: 前端 · 类型检查与构建
+    name: 前端 · 类型检查、测试与构建
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -107,4 +107,6 @@ jobs:
       # ⚠️ vite build 走 esbuild 只剥离类型、不做检查，
       #    所以**类型错误只会被 typecheck 这一步挡住，构建永远是绿的**。
       - run: npm run typecheck
+      # 单测只覆盖纯逻辑（请求层、鉴权等），不起后端、不连数据库。
+      - run: npm run test
       - run: npm run build

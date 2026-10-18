@@ -175,6 +175,14 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     self.assertIn("mvn -B -ntp verify", ci_text)
                     self.assertIn("target/failsafe-reports/TEST-*IT.xml", ci_text)
 
+                    # 前端单测：样例测试文件、脚本与 CI 步骤三者缺一不可，否则门禁形同虚设。
+                    self.assertTrue((out / "frontend/src/api/request.test.ts").is_file())
+                    frontend_pkg = (out / "frontend/package.json").read_text(encoding="utf-8")
+                    self.assertIn('"test": "vitest run"', frontend_pkg)
+                    self.assertIn('"vitest"', frontend_pkg)
+                    self.assertIn('"happy-dom"', frontend_pkg)
+                    self.assertIn("npm run test", ci_text)
+
                     app_yml = (out / "backend/src/main/resources/application.yml").read_text(encoding="utf-8")
                     self.assertIn("include: health", app_yml)
 

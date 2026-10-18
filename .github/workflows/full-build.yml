@@ -118,6 +118,10 @@ jobs:
         working-directory: ${{ runner.temp }}/full-build/frontend
         run: npm run typecheck
 
+      - name: 单元测试
+        working-directory: ${{ runner.temp }}/full-build/frontend
+        run: npm run test
+
       - name: 构建
         working-directory: ${{ runner.temp }}/full-build/frontend
         run: npm run build

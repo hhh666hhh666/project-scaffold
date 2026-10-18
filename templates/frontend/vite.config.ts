@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+// 上面这行让 Vite 的 defineConfig 认识下面的 test 块；删掉它，test 会被当成未知字段报类型错。
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
@@ -11,6 +13,12 @@ const APP_COMMIT = process.env.APP_COMMIT ?? 'unknown'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  // 单测（Vitest）复用这份配置：别名 @ 与生产构建同一套，不会两处各写一遍。
+  // happy-dom 只提供 localStorage / document 这类基础能力，够纯逻辑测试用，比 jsdom 轻。
+  test: {
+    environment: 'happy-dom',
+    include: ['src/**/*.test.ts']
+  },
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
     __APP_COMMIT__: JSON.stringify(APP_COMMIT)

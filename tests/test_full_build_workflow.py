@@ -55,13 +55,17 @@ class FullBuildWorkflowTest(unittest.TestCase):
         self.assertIn("target/failsafe-reports/TEST-*IT.xml", self.text)
         self.assertIn("if: failure()", self.text)
 
-    def test_frontend_installs_without_lockfile_then_typechecks_and_builds(self) -> None:
+    def test_frontend_installs_without_lockfile_then_typechecks_tests_and_builds(self) -> None:
         active = "\n".join(self.lines)
         self.assertIn("npm install --no-audit --no-fund", active)
         # 模板不带 package-lock.json，npm ci 会直接失败；这条约束必须显式守住。
         self.assertNotIn("npm ci", active)
         self.assertIn("npm run typecheck", active)
+        self.assertIn("npm run test", active)
         self.assertIn("npm run build", active)
+        # 顺序有意义：单测在构建之前，构建失败前的逻辑错误先由测试暴露。
+        self.assertLess(active.index("npm run typecheck"), active.index("npm run test"))
+        self.assertLess(active.index("npm run test"), active.index("npm run build"))
         self.assertIn("test -f dist/index.html", active)
 
     def test_workflow_does_not_touch_other_repositories_or_deploy(self) -> None:
