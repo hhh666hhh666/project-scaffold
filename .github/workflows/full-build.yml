@@ -61,11 +61,16 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # verify 会跑 surefire（*Test）与 failsafe（*IT）。骨架阶段没有 *IT，
-      # 所以这次实际只编译、单测、打包；将来模板加了集成测试，这里无需改动即可覆盖。
+      # verify 会跑 surefire（*Test）与 failsafe（*IT）。模板现在带一个
+      # Testcontainers 集成测试，所以这一步也会起真 MySQL、执行 Flyway 迁移。
       - name: 后端 verify
         working-directory: ${{ runner.temp }}/full-build/backend
         run: mvn -B -ntp verify
+
+      # verify 成功不等于 IT 真的执行过：断言 failsafe 报告存在。
+      - name: 确认集成测试确实执行
+        working-directory: ${{ runner.temp }}/full-build/backend
+        run: ls target/failsafe-reports/TEST-*IT.xml
 
       # 判据看产物，不看退出码：jar 真的在，才算构建完成。
       - name: 确认后端产物存在

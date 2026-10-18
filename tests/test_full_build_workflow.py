@@ -52,6 +52,7 @@ class FullBuildWorkflowTest(unittest.TestCase):
         self.assertTrue(any(re.search(r"mvn -B -ntp verify$", line) for line in runs), runs)
         self.assertNotIn("mvn -B -ntp test", "\n".join(runs))
         self.assertIn("ls -l target/*.jar", self.text)
+        self.assertIn("target/failsafe-reports/TEST-*IT.xml", self.text)
         self.assertIn("if: failure()", self.text)
 
     def test_frontend_installs_without_lockfile_then_typechecks_and_builds(self) -> None:

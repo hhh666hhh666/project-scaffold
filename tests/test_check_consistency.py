@@ -25,6 +25,7 @@ FIXTURE_FILES = (
     "templates/docker/docker-compose.dev.yml",
     "templates/deploy/docker-compose.prod.yml",
     "templates/deploy/.github/workflows/release.yml",
+    "templates/backend/src/test/java/${PACKAGE_PATH}/module/example/ExampleApiIT.java",
     ".github/workflows/full-build.yml",
     "references/TECH-STACK.md",
     "references/SKILL-SOURCES.json",

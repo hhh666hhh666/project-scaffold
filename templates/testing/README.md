@@ -62,7 +62,8 @@
 ## 加新测试放哪
 
 - **单元测试**：`backend/src/test/java/…/module/<模块>/service/`，类名以 `Test` 结尾
-- **接口与服务集成测试**：同一棵 `src/test` 树，**类名以 `IT` 结尾**
+- **接口与服务集成测试**：同一棵 `src/test` 树，**类名以 `IT` 结尾**；模板自带的样例是
+  `backend/src/test/java/…/module/example/ExampleApiIT.java`，可用它照抄 `@Testcontainers` + `@ServiceConnection` 的形状
 - **端到端**：本模板不提供（见上面边界声明）
 
 ⚠️ 保持「纯 JUnit 测试不引 Spring 上下文」这条约束。某个逻辑确实需要数据库才能测时，**按 [系统说明](./系统说明.md) 里「改动 → 补哪层」的表**决定进哪一层，别顺手让 `mvn test` 背上起服务的成本——那是一次真正的取舍。

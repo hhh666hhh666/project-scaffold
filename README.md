@@ -219,6 +219,7 @@ AI 在这几处必须**先问使用者、拿到确认再做**：每次 `git comm
 - 后端依赖版本**钉死**（清单见 [references/TECH-STACK.md](references/TECH-STACK.md) 的版本表），不写 `<latest>`；
   前端用 `^` / `~` 范围，实际安装版本由初始化时生成的 `package-lock.json` 固定；
 - 集成测试用 **Testcontainers + 真 MySQL**，不用 H2——迁移脚本是 MySQL 方言，用 H2 等于把「测试环境与真实环境不一致」请回来；
+  模板自带一个最小的 `ExampleApiIT`，让 `mvn verify` 首日就有真库覆盖；
 - 前端 Dockerfile **必须 glibc 基础镜像**（Node 的 slim 镜像，非 alpine）——esbuild 没有 x64-musl 官方二进制；
 - 模板里**没有任何真实凭据**：密钥、密码、服务器 IP 全是占位符，真实值一律走 GitHub Secrets；
 - 配套 skill **按固定提交安装**并记录来源，不追上游最新分支头；`--outdated` 只报告差异，不自动升级；
@@ -289,9 +290,10 @@ python scripts/check_consistency.py
 并在临时目录生成全开关项目、跑四条生成项目守卫；一致性检查也会核对 CI 里写死的 JDK / Node 版本。
 
 `.github/workflows/full-build.yml` 是另一层门禁：每周定时、手动触发，以及改动 `templates/**` 或
-`scripts/scaffold.py` 的 PR 上，用模板真实生成一个项目，再跑后端 `mvn -B -ntp verify` 和前端
-`npm install → typecheck → build`，并确认 jar 与 `dist/index.html` 真的存在。它需要网络与真实 toolchain，
-是分钟级任务，所以不挂在每次 push 上。模板不带 `package-lock.json`，因此这里用 `npm install` 而不是 `npm ci`。
+`scripts/scaffold.py` 的 PR 上，用模板真实生成一个项目，再跑后端 `mvn -B -ntp verify`（含模板自带的
+Testcontainers 集成测试）和前端 `npm install → typecheck → build`，并确认 jar 与 `dist/index.html`
+真的存在、failsafe 报告确实产生。它需要网络与真实 toolchain，是分钟级任务，所以不挂在每次 push 上。
+模板不带 `package-lock.json`，因此这里用 `npm install` 而不是 `npm ci`。
 
 两层 CI 都**不覆盖**真实数据库、浏览器、外部 skill 拉取，也不验证 Dependabot 服务的实际开 PR 行为；
 真实固定提交安装仍只做人工验收。

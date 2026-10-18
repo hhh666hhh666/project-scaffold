@@ -73,6 +73,7 @@ MYSQL_IMAGE_FILES = (
     "templates/docker/docker-compose.dev.yml",
     "templates/deploy/docker-compose.prod.yml",
     "templates/deploy/.github/workflows/release.yml",
+    "templates/backend/src/test/java/${PACKAGE_PATH}/module/example/ExampleApiIT.java",
 )
 
 # 工作流里写死的 toolchain 版本。模板升级时漏改这里，生成项目会在另一版 JDK / Node 上跑，

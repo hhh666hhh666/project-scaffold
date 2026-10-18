@@ -74,7 +74,7 @@ Vue 3 + Vite + TypeScript + Pinia + Tailwind v4 + shadcn-vue（`components.json`
 | `docker-compose.dev.yml` | **只起数据库**；后端与前端在宿主机直跑（改代码不用重建镜像）。Docker 是本机 MySQL 的推荐启动方式，联通也可使用专用外部 MySQL；纯 `mvn test` 与前端门禁不需要数据库。 |
 | 后端 Dockerfile | 两阶段构建（maven → JRE）。`MAVEN_MIRROR` 开关决定是否用国内源 |
 | 前端 Dockerfile | **必须 glibc 基础镜像（Node 的 slim 镜像，非 alpine）**——esbuild 没有 x64-musl 官方二进制；**必须有 `.dockerignore`**，否则宿主机 `node_modules` 会被送进构建上下文 |
-| `ci.yml` | 精简到「文档守卫 + 后端单测 + 前端类型检查与构建」。源项目那套（依赖扫描、Testcontainers、镜像冒烟、端到端）**不进骨架**——骨架阶段没有业务可跑 |
+| `ci.yml` | 「文档守卫 + 后端单测 + 后端集成测试 + 前端类型检查与构建」四个 job。集成测试单独一个 job，用 Testcontainers 起真 MySQL；依赖扫描、镜像冒烟、端到端仍不进骨架 |
 | `dependabot.yml` | 每周为 Maven / npm / GitHub Actions 各提升级 PR，只提案、不自动合并；基础镜像与 MySQL 镜像**不在覆盖范围**，镜像升级仍靠人判断 |
 | 发布门禁 | `release.yml` 只在推 `v*` tag 时运行；升级 PR 走普通 `ci.yml`，既不拿部署 Secrets，也不会发布 |
 

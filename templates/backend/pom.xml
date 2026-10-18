@@ -110,11 +110,15 @@
             <scope>test</scope>
         </dependency>
 
-        <!--
-          接口与服务集成测试（*IT）用的真数据库。为什么不用 H2：迁移脚本是 MySQL 方言，
+        <!-- 接口与服务集成测试（*IT）用的真数据库。为什么不用 H2：迁移脚本是 MySQL 方言，
           用 H2 等于把「测试环境与真实环境不一致」请回来。
           版本由 spring-boot-starter-parent 的依赖管理给出，这里不写死。
         -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>mysql</artifactId>

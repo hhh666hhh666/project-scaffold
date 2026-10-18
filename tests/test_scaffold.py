@@ -162,6 +162,18 @@ class ScaffoldGenerationTest(unittest.TestCase):
                     )
                     self.assertTrue((out / "docs/adr/README.md").is_file())
                     self.assertTrue((out / "backend/src/test/java/com/example/demoapp/module/example/service/ExampleServiceTest.java").is_file())
+
+                    integration_test = out / "backend/src/test/java/com/example/demoapp/module/example/ExampleApiIT.java"
+                    self.assertTrue(integration_test.is_file())
+                    integration_text = integration_test.read_text(encoding="utf-8")
+                    self.assertIn('new MySQLContainer<>("mysql:8")', integration_text)
+                    self.assertNotIn("${", integration_text)
+
+                    ci_text = (out / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+                    self.assertIn("integration:", ci_text)
+                    self.assertIn("mvn -B -ntp verify", ci_text)
+                    self.assertIn("target/failsafe-reports/TEST-*IT.xml", ci_text)
+
                     self.assertEqual((out / "deploy/README.md").exists(), deploy)
                     self.assertEqual((out / "docs/operations/内存策略.md").exists(), ops)
                     self.assertEqual((out / "docs/testing/README.md").exists(), testing)

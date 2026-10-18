@@ -98,13 +98,15 @@
 
 ### CI 与发布
 
-- `ci.yml`（总是生成）：push / PR 到 master，跑文档守卫、后端 `mvn test`、前端 `npm ci → typecheck → build`。
+- `ci.yml`（总是生成）：push / PR 到 master，跑文档守卫、后端 `mvn test`、后端 `mvn verify`（Testcontainers 集成测试）、
+  前端 `npm ci → typecheck → build`。
 - `release.yml`（`--with-deploy` 才生成）：推 `v*` tag 后依次做版本门禁 → 一次性 `mysql:8` 重放迁移
   → 构建并推送两个镜像 → SSH 部署；**不推 `latest`**，回滚落点是版本 tag。
 - `dependabot.yml`（总是生成）：每周为 Maven / npm / GitHub Actions 提升级 PR，只提案、不自动合并，
   也不触发部署；基础镜像与 MySQL 镜像不在覆盖范围。
 
-`ci.yml` 不跑 `mvn verify`、不启动 Docker、不连真实数据库；这些属于本地初始化验收或发布链路。
+`ci.yml` 把单测与集成测试分成两个 job：单测不启动 Docker、几秒出结果；集成测试跑 `mvn verify`，
+由 Testcontainers 起真 MySQL 并执行 Flyway 迁移。镜像冒烟与端到端仍不放进骨架。
 
 ---
 
@@ -129,9 +131,8 @@
   - 这是「模板写错了」在发布前被拦住的关卡：生成项目自己的 `ci.yml` 要等使用者建仓推送后才运行。
     它需要真实 toolchain 与网络，分钟级，所以不挂在每次 push 上。
 
-`selftest.yml` 离线、秒级；`full-build.yml` 联网、分钟级；两者都不拉取外部 skill、不连真实数据库或浏览器，
-真实固定提交安装仍只做人工验收。`mvn verify` 目前只编译、单测、打包——骨架还没有 `*IT`，
-将来模板加了集成测试，该工作流会自动覆盖，无需修改。
+`selftest.yml` 离线、秒级；`full-build.yml` 联网、分钟级，并会执行模板自带的 Testcontainers 集成测试。
+两者都不拉取外部 skill、不连接生产数据库或浏览器，真实固定提交安装仍只做人工验收。
 
 ---
 
